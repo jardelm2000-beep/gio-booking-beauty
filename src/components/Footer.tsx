@@ -1,0 +1,28 @@
+import { Instagram, Heart } from "lucide-react";
+import logo from "@/assets/logo.png";
+
+const Footer = () => (
+  <footer className="py-12 border-t border-border/50">
+    <div className="container mx-auto px-4 text-center space-y-4">
+      <img src={logo} alt="GB" className="h-8 w-8 mx-auto opacity-60" loading="lazy" />
+      <p className="text-muted-foreground text-xs font-sans">
+        By Giovanna Belizário © {new Date().getFullYear()}
+      </p>
+      <div className="flex justify-center gap-4">
+        <a
+          href="https://www.instagram.com/bygiovannabelizario"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-primary transition-colors"
+        >
+          <Instagram className="w-4 h-4" />
+        </a>
+      </div>
+      <p className="text-muted-foreground/50 text-[10px] font-sans flex items-center justify-center gap-1">
+        Feito com <Heart className="w-3 h-3 text-primary/50" /> para você
+      </p>
+    </div>
+  </footer>
+);
+
+export default Footer;

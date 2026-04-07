@@ -22,22 +22,22 @@ const HeroSection = () => {
             <Sparkles className="w-4 h-4" />
           </div>
 
-          <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl leading-tight">
+          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl leading-tight">
             Agende seu{" "}
             <span className="text-gradient-gold italic">melhor</span>
             <br />
             horário
           </h1>
 
-          <p className="text-foreground/60 font-sans text-base sm:text-lg max-w-md mx-auto leading-relaxed">
+          <p className="text-foreground/60 font-sans text-sm sm:text-lg max-w-md mx-auto leading-relaxed px-2">
             Bem-vinda, madame. Se sinta à vontade — você faz total diferença para nós!
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4 px-4">
             <Button
               asChild
               size="lg"
-              className="bg-gradient-gold hover:bg-gradient-gold-hover text-primary-foreground font-sans shadow-gold tracking-wide"
+              className="bg-gradient-gold hover:bg-gradient-gold-hover text-primary-foreground font-sans shadow-gold tracking-wide w-full sm:w-auto"
             >
               <Link to="/agendar">
                 <CalendarDays className="w-5 h-5 mr-2" />
@@ -48,7 +48,7 @@ const HeroSection = () => {
               asChild
               variant="outline"
               size="lg"
-              className="border-primary/30 text-primary hover:bg-primary/10 font-sans"
+              className="border-primary/30 text-primary hover:bg-primary/10 font-sans w-full sm:w-auto"
             >
               <a
                 href="https://wa.link/t0ghdg"

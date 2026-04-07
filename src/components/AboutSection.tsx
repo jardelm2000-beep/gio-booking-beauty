@@ -17,8 +17,8 @@ const AboutSection = () => {
                 height={1024}
               />
             </div>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold">
-              <span className="font-serif text-primary-foreground text-xl">GB</span>
+            <div className="absolute -bottom-4 -right-4 w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold">
+              <span className="font-serif text-primary-foreground text-base sm:text-xl">GB</span>
             </div>
           </div>
 
@@ -39,13 +39,13 @@ const AboutSection = () => {
               merece um tratamento exclusivo e especial.
             </p>
 
-            <div className="flex gap-6 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-2">
               <div className="flex items-center gap-2 text-sm text-foreground/70 font-sans">
-                <Award className="w-4 h-4 text-primary" />
+                <Award className="w-4 h-4 text-primary flex-shrink-0" />
                 Profissional Certificada
               </div>
               <div className="flex items-center gap-2 text-sm text-foreground/70 font-sans">
-                <Heart className="w-4 h-4 text-primary" />
+                <Heart className="w-4 h-4 text-primary flex-shrink-0" />
                 +500 Clientes
               </div>
             </div>

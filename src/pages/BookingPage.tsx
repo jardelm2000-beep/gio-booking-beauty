@@ -49,7 +49,7 @@ const BookingPage = () => {
         </Link>
 
         <div className="text-center mb-10 space-y-2">
-          <h1 className="font-serif text-3xl sm:text-4xl">
+          <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl">
             Agende seu <span className="text-gradient-gold italic">horário</span>
           </h1>
           <p className="text-muted-foreground font-sans text-sm">
@@ -112,7 +112,7 @@ const BookingPage = () => {
                 <p className="text-sm font-sans text-center text-muted-foreground">
                   {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
                 </p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                   {timeSlots.map((time) => (
                     <Button
                       key={time}

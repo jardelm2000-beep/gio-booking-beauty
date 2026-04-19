@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CalendarDays, DollarSign, TrendingUp, TrendingDown, Plus, Trash2,
-  LayoutDashboard, Calendar as CalIcon, Wallet, LogOut, CheckCircle2, Tag,
+  LayoutDashboard, Calendar as CalIcon, Wallet, LogOut, CheckCircle2, Tag, Lock,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,158 +17,181 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
-type Transaction = {
+type AppointmentRow = {
   id: string;
-  type: "income" | "expense";
+  client_name: string;
+  client_phone: string;
+  service_name: string;
+  service_price: number;
+  appointment_date: string;
+  appointment_time: string;
+  paid: boolean;
+  status: string;
+};
+
+type ExpenseRow = {
+  id: string;
   description: string;
   category: string;
   amount: number;
-  date: Date;
-  fromAppointmentId?: string;
-};
-
-type Appointment = {
-  id: string;
-  client: string;
-  service: string;
-  price: number;
-  date: Date;
-  time: string;
-  paid: boolean;
+  expense_date: string;
 };
 
 const expenseCategories = ["Materiais", "Aluguel", "Marketing", "Equipamentos", "Outros"];
 
-const initialAppointments: Appointment[] = [
-  { id: "a1", client: "Maria Silva", service: "Extensão de Cílios", price: 150, date: new Date(), time: "09:00", paid: true },
-  { id: "a2", client: "Ana Costa", service: "Design de Sobrancelhas", price: 60, date: new Date(), time: "11:00", paid: false },
-  { id: "a3", client: "Julia Santos", service: "Lash Lifting", price: 120, date: new Date(), time: "14:00", paid: false },
-];
-
 const DashboardPage = () => {
+  const navigate = useNavigate();
+  const { user, isAdmin, loading, signOut } = useAuth();
   const [tab, setTab] = useState<"overview" | "agenda" | "finance">("overview");
-  const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: "t0", type: "expense", description: "Cola de cílios premium", category: "Materiais", amount: 45, date: new Date() },
-  ]);
-  const [blockedDates, setBlockedDates] = useState<Date[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  // Expense form
   const [newDesc, setNewDesc] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newCategory, setNewCategory] = useState(expenseCategories[0]);
 
-  // Auto-generate income transactions from paid appointments
+  // Auth gate
   useEffect(() => {
-    setTransactions((prev) => {
-      const existingIds = new Set(prev.filter((t) => t.fromAppointmentId).map((t) => t.fromAppointmentId));
-      const newOnes: Transaction[] = appointments
-        .filter((a) => a.paid && !existingIds.has(a.id))
-        .map((a) => ({
-          id: `inc-${a.id}`,
-          type: "income",
-          description: `${a.service} — ${a.client}`,
-          category: "Atendimento",
-          amount: a.price,
-          date: a.date,
-          fromAppointmentId: a.id,
-        }));
-      // Remove income transactions whose appointment was unpaid
-      const stillValid = prev.filter((t) => {
-        if (!t.fromAppointmentId) return true;
-        const appt = appointments.find((a) => a.id === t.fromAppointmentId);
-        return appt?.paid;
-      });
-      return [...stillValid, ...newOnes];
-    });
-  }, [appointments]);
+    if (loading) return;
+    if (!user) {
+      navigate("/auth?redirect=/admin", { replace: true });
+    }
+  }, [user, loading, navigate]);
 
-  const togglePaid = (id: string) => {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, paid: !a.paid } : a)),
-    );
-    const appt = appointments.find((a) => a.id === id);
-    toast.success(appt?.paid ? "Pagamento removido" : "Atendimento marcado como pago 💖");
+  // Carrega dados + realtime
+  useEffect(() => {
+    if (!user || !isAdmin) return;
+    let active = true;
+
+    const load = async () => {
+      const [{ data: ap }, { data: ex }] = await Promise.all([
+        supabase.from("appointments").select("*").order("appointment_date", { ascending: true }),
+        supabase.from("expenses").select("*").order("expense_date", { ascending: false }),
+      ]);
+      if (!active) return;
+      setAppointments((ap as AppointmentRow[]) || []);
+      setExpenses((ex as ExpenseRow[]) || []);
+      setDataLoading(false);
+    };
+    load();
+
+    const channel = supabase
+      .channel("admin-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, load)
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [user, isAdmin]);
+
+  const togglePaid = async (a: AppointmentRow) => {
+    const { error } = await supabase
+      .from("appointments")
+      .update({ paid: !a.paid })
+      .eq("id", a.id);
+    if (error) toast.error(error.message);
+    else toast.success(a.paid ? "Pagamento removido" : "Marcado como pago 💖");
   };
 
-  const income = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const expense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const balance = income - expense;
-
-  // Current month metrics
-  const monthInterval = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
-  const monthIncome = transactions
-    .filter((t) => t.type === "income" && isWithinInterval(t.date, monthInterval))
-    .reduce((s, t) => s + t.amount, 0);
-  const monthExpense = transactions
-    .filter((t) => t.type === "expense" && isWithinInterval(t.date, monthInterval))
-    .reduce((s, t) => s + t.amount, 0);
-
-  const pendingPayments = appointments
-    .filter((a) => !a.paid)
-    .reduce((s, a) => s + a.price, 0);
-
-  // Chart data — last 6 months
-  const chartData = useMemo(() => {
-    return Array.from({ length: 6 }).map((_, i) => {
-      const d = subMonths(new Date(), 5 - i);
-      const interval = { start: startOfMonth(d), end: endOfMonth(d) };
-      const inc = transactions
-        .filter((t) => t.type === "income" && isWithinInterval(t.date, interval))
-        .reduce((s, t) => s + t.amount, 0);
-      const exp = transactions
-        .filter((t) => t.type === "expense" && isWithinInterval(t.date, interval))
-        .reduce((s, t) => s + t.amount, 0);
-      return {
-        month: format(d, "MMM", { locale: ptBR }),
-        Receitas: inc,
-        Despesas: exp,
-      };
-    });
-  }, [transactions]);
-
-  const addExpense = () => {
-    if (!newDesc || !newAmount) {
+  const addExpense = async () => {
+    if (!newDesc.trim() || !newAmount) {
       toast.error("Preencha descrição e valor");
       return;
     }
-    setTransactions((prev) => [
-      ...prev,
-      {
-        id: `exp-${Date.now()}`,
-        type: "expense",
-        description: newDesc,
-        category: newCategory,
-        amount: Number(newAmount),
-        date: new Date(),
-      },
-    ]);
+    const amount = Number(newAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Valor inválido");
+      return;
+    }
+    const { error } = await supabase.from("expenses").insert({
+      description: newDesc.trim().slice(0, 200),
+      category: newCategory,
+      amount,
+      expense_date: format(new Date(), "yyyy-MM-dd"),
+      created_by: user?.id,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setNewDesc("");
     setNewAmount("");
     toast.success("Despesa registrada!");
   };
 
-  const removeTransaction = (id: string, fromAppt?: string) => {
-    if (fromAppt) {
-      toast.error("Receitas vêm dos atendimentos. Desmarque o pagamento na Agenda.");
-      return;
-    }
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  const removeExpense = async (id: string) => {
+    const { error } = await supabase.from("expenses").delete().eq("id", id);
+    if (error) toast.error(error.message);
   };
 
-  const toggleBlockDate = (date: Date | undefined) => {
-    if (!date) return;
-    setSelectedDate(date);
-    const exists = blockedDates.some((d) => d.toDateString() === date.toDateString());
-    if (exists) {
-      setBlockedDates(blockedDates.filter((d) => d.toDateString() !== date.toDateString()));
-      toast("Data desbloqueada");
-    } else {
-      setBlockedDates([...blockedDates, date]);
-      toast("Data bloqueada");
-    }
+  // Cálculos derivados
+  const incomeTransactions = useMemo(
+    () => appointments.filter((a) => a.paid).map((a) => ({
+      id: `inc-${a.id}`,
+      type: "income" as const,
+      description: `${a.service_name} — ${a.client_name}`,
+      category: "Atendimento",
+      amount: Number(a.service_price),
+      date: parseISO(a.appointment_date),
+      fromAppointmentId: a.id,
+    })),
+    [appointments],
+  );
+  const expenseTransactions = useMemo(
+    () => expenses.map((e) => ({
+      id: e.id,
+      type: "expense" as const,
+      description: e.description,
+      category: e.category,
+      amount: Number(e.amount),
+      date: parseISO(e.expense_date),
+    })),
+    [expenses],
+  );
+  const transactions = useMemo(
+    () => [...incomeTransactions, ...expenseTransactions],
+    [incomeTransactions, expenseTransactions],
+  );
+
+  const income = incomeTransactions.reduce((s, t) => s + t.amount, 0);
+  const expense = expenseTransactions.reduce((s, t) => s + t.amount, 0);
+  const balance = income - expense;
+
+  const monthInterval = { start: startOfMonth(new Date()), end: endOfMonth(new Date()) };
+  const monthIncome = incomeTransactions
+    .filter((t) => isWithinInterval(t.date, monthInterval))
+    .reduce((s, t) => s + t.amount, 0);
+  const monthExpense = expenseTransactions
+    .filter((t) => isWithinInterval(t.date, monthInterval))
+    .reduce((s, t) => s + t.amount, 0);
+
+  const pendingPayments = appointments
+    .filter((a) => !a.paid)
+    .reduce((s, a) => s + Number(a.service_price), 0);
+
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const todaysAppointments = appointments.filter((a) => a.appointment_date === todayStr);
+
+  const chartData = useMemo(() => {
+    return Array.from({ length: 6 }).map((_, i) => {
+      const d = subMonths(new Date(), 5 - i);
+      const interval = { start: startOfMonth(d), end: endOfMonth(d) };
+      const inc = incomeTransactions.filter((t) => isWithinInterval(t.date, interval)).reduce((s, t) => s + t.amount, 0);
+      const exp = expenseTransactions.filter((t) => isWithinInterval(t.date, interval)).reduce((s, t) => s + t.amount, 0);
+      return { month: format(d, "MMM", { locale: ptBR }), Receitas: inc, Despesas: exp };
+    });
+  }, [incomeTransactions, expenseTransactions]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/", { replace: true });
   };
 
   const navItems = [
@@ -176,6 +199,36 @@ const DashboardPage = () => {
     { key: "agenda" as const, icon: CalIcon, label: "Agenda" },
     { key: "finance" as const, icon: Wallet, label: "Financeiro" },
   ];
+
+  // Loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground font-sans text-sm">Carregando...</p>
+      </div>
+    );
+  }
+
+  // Sem permissão
+  if (user && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="border-border/50 max-w-md w-full">
+          <CardContent className="p-8 text-center space-y-4">
+            <Lock className="w-12 h-12 text-primary mx-auto" />
+            <h2 className="font-serif text-2xl">Acesso restrito</h2>
+            <p className="text-muted-foreground font-sans text-sm">
+              Esta área é exclusiva para a Giovanna. Sua conta não tem permissão de administrador.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button asChild variant="outline" className="font-sans"><Link to="/">Voltar</Link></Button>
+              <Button onClick={handleSignOut} className="bg-gradient-gold text-primary-foreground font-sans">Sair</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -201,8 +254,8 @@ const DashboardPage = () => {
             </button>
           ))}
         </nav>
-        <Button asChild variant="ghost" className="text-muted-foreground font-sans text-sm justify-start">
-          <Link to="/"><LogOut className="w-4 h-4 mr-2" /> Sair</Link>
+        <Button onClick={handleSignOut} variant="ghost" className="text-muted-foreground font-sans text-sm justify-start">
+          <LogOut className="w-4 h-4 mr-2" /> Sair
         </Button>
       </aside>
 
@@ -233,7 +286,11 @@ const DashboardPage = () => {
             {tab === "finance" && "Fluxo de Caixa"}
           </h1>
 
-          {tab === "overview" && (
+          {dataLoading && (
+            <p className="text-muted-foreground font-sans text-sm">Carregando dados...</p>
+          )}
+
+          {!dataLoading && tab === "overview" && (
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <Card className="border-border/50">
@@ -242,9 +299,7 @@ const DashboardPage = () => {
                       <span className="text-[10px] sm:text-xs text-muted-foreground font-sans uppercase tracking-wide">Receitas (mês)</span>
                       <TrendingUp className="w-4 h-4 text-green-500" />
                     </div>
-                    <p className="text-xl sm:text-2xl font-sans font-semibold text-green-500">
-                      R$ {monthIncome.toFixed(0)}
-                    </p>
+                    <p className="text-xl sm:text-2xl font-sans font-semibold text-green-500">R$ {monthIncome.toFixed(0)}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-border/50">
@@ -253,9 +308,7 @@ const DashboardPage = () => {
                       <span className="text-[10px] sm:text-xs text-muted-foreground font-sans uppercase tracking-wide">Despesas (mês)</span>
                       <TrendingDown className="w-4 h-4 text-destructive" />
                     </div>
-                    <p className="text-xl sm:text-2xl font-sans font-semibold text-destructive">
-                      R$ {monthExpense.toFixed(0)}
-                    </p>
+                    <p className="text-xl sm:text-2xl font-sans font-semibold text-destructive">R$ {monthExpense.toFixed(0)}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-border/50">
@@ -264,9 +317,7 @@ const DashboardPage = () => {
                       <span className="text-[10px] sm:text-xs text-muted-foreground font-sans uppercase tracking-wide">Saldo total</span>
                       <DollarSign className="w-4 h-4 text-primary" />
                     </div>
-                    <p className="text-xl sm:text-2xl font-sans font-semibold text-primary">
-                      R$ {balance.toFixed(0)}
-                    </p>
+                    <p className="text-xl sm:text-2xl font-sans font-semibold text-primary">R$ {balance.toFixed(0)}</p>
                   </CardContent>
                 </Card>
                 <Card className="border-border/50">
@@ -275,9 +326,7 @@ const DashboardPage = () => {
                       <span className="text-[10px] sm:text-xs text-muted-foreground font-sans uppercase tracking-wide">A receber</span>
                       <CalendarDays className="w-4 h-4 text-primary" />
                     </div>
-                    <p className="text-xl sm:text-2xl font-sans font-semibold text-foreground/80">
-                      R$ {pendingPayments.toFixed(0)}
-                    </p>
+                    <p className="text-xl sm:text-2xl font-sans font-semibold text-foreground/80">R$ {pendingPayments.toFixed(0)}</p>
                   </CardContent>
                 </Card>
               </div>
@@ -315,20 +364,25 @@ const DashboardPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {appointments.map((a) => (
+                  {todaysAppointments.length === 0 && (
+                    <p className="text-sm text-muted-foreground font-sans text-center py-4">
+                      Nenhum agendamento para hoje.
+                    </p>
+                  )}
+                  {todaysAppointments.map((a) => (
                     <div key={a.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0 gap-3">
                       <div className="min-w-0">
-                        <p className="font-sans text-sm font-medium truncate">{a.client}</p>
-                        <p className="text-xs text-muted-foreground font-sans truncate">{a.service} · R$ {a.price}</p>
+                        <p className="font-sans text-sm font-medium truncate">{a.client_name}</p>
+                        <p className="text-xs text-muted-foreground font-sans truncate">{a.service_name} · R$ {Number(a.service_price).toFixed(0)}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <Badge variant="outline" className="border-primary/30 text-primary font-sans text-xs">
-                          {a.time}
+                          {a.appointment_time}
                         </Badge>
                         <Button
                           size="sm"
                           variant={a.paid ? "default" : "outline"}
-                          onClick={() => togglePaid(a.id)}
+                          onClick={() => togglePaid(a)}
                           className={`font-sans text-xs h-7 ${a.paid ? "bg-green-600 hover:bg-green-700 text-white" : "border-border/50"}`}
                         >
                           <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -342,45 +396,42 @@ const DashboardPage = () => {
             </div>
           )}
 
-          {tab === "agenda" && (
+          {!dataLoading && tab === "agenda" && (
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="font-serif text-lg mb-4">Calendário</h3>
                   <Calendar
                     mode="single"
-                    selected={selectedDate}
-                    onSelect={toggleBlockDate}
-                    modifiers={{ blocked: blockedDates }}
-                    modifiersClassNames={{ blocked: "bg-destructive/20 text-destructive" }}
                     locale={ptBR}
                     className="p-3 pointer-events-auto rounded-lg border border-border/50"
                   />
-                  <p className="text-xs text-muted-foreground font-sans mt-3">
-                    Clique em uma data para bloquear/desbloquear
-                  </p>
                 </div>
 
                 <div>
                   <h3 className="font-serif text-lg mb-4">Próximos Agendamentos</h3>
                   <div className="space-y-3">
+                    {appointments.length === 0 && (
+                      <p className="text-sm text-muted-foreground font-sans">Nenhum agendamento ainda.</p>
+                    )}
                     {appointments.map((a) => (
                       <Card key={a.id} className="border-border/50">
                         <CardContent className="p-4 space-y-3">
                           <div className="flex justify-between items-start gap-2">
                             <div className="min-w-0">
-                              <p className="font-sans text-sm font-medium truncate">{a.client}</p>
-                              <p className="text-xs text-muted-foreground font-sans">{a.service} · {a.time}</p>
-                              <p className="text-xs text-primary font-sans mt-1">R$ {a.price.toFixed(2)}</p>
+                              <p className="font-sans text-sm font-medium truncate">{a.client_name}</p>
+                              <p className="text-xs text-muted-foreground font-sans">{a.service_name} · {a.appointment_time}</p>
+                              <p className="text-xs text-muted-foreground font-sans">{a.client_phone}</p>
+                              <p className="text-xs text-primary font-sans mt-1">R$ {Number(a.service_price).toFixed(2)}</p>
                             </div>
                             <Badge variant="outline" className="border-primary/30 text-primary font-sans text-xs shrink-0">
-                              {format(a.date, "dd/MM")}
+                              {format(parseISO(a.appointment_date), "dd/MM")}
                             </Badge>
                           </div>
                           <Button
                             size="sm"
                             variant={a.paid ? "default" : "outline"}
-                            onClick={() => togglePaid(a.id)}
+                            onClick={() => togglePaid(a)}
                             className={`w-full font-sans text-xs ${a.paid ? "bg-green-600 hover:bg-green-700 text-white" : "border-border/50"}`}
                           >
                             <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -395,9 +446,8 @@ const DashboardPage = () => {
             </div>
           )}
 
-          {tab === "finance" && (
+          {!dataLoading && tab === "finance" && (
             <div className="space-y-6 animate-fade-in">
-              {/* Summary cards */}
               <div className="grid grid-cols-3 gap-3">
                 <Card className="border-border/50">
                   <CardContent className="p-4">
@@ -419,12 +469,11 @@ const DashboardPage = () => {
                 </Card>
               </div>
 
-              {/* Add expense */}
               <Card className="border-border/50">
                 <CardHeader>
                   <CardTitle className="font-serif text-lg">Adicionar Despesa</CardTitle>
                   <p className="text-xs text-muted-foreground font-sans">
-                    💡 As receitas são geradas automaticamente quando você marca um atendimento como pago na Agenda.
+                    💡 As receitas são geradas automaticamente quando você marca um atendimento como pago.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -434,6 +483,7 @@ const DashboardPage = () => {
                       value={newDesc}
                       onChange={(e) => setNewDesc(e.target.value)}
                       className="bg-secondary border-border/50 font-sans"
+                      maxLength={200}
                     />
                     <Select value={newCategory} onValueChange={setNewCategory}>
                       <SelectTrigger className="bg-secondary border-border/50 font-sans">
@@ -461,7 +511,6 @@ const DashboardPage = () => {
                 </CardContent>
               </Card>
 
-              {/* Transactions list */}
               <Card className="border-border/50">
                 <CardHeader>
                   <CardTitle className="font-serif text-lg">Lançamentos</CardTitle>
@@ -490,12 +539,14 @@ const DashboardPage = () => {
                           <span className={`font-sans text-sm font-medium ${t.type === "income" ? "text-green-500" : "text-destructive"}`}>
                             {t.type === "income" ? "+" : "-"} R$ {t.amount.toFixed(2)}
                           </span>
-                          <button
-                            onClick={() => removeTransaction(t.id, t.fromAppointmentId)}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {t.type === "expense" && (
+                            <button
+                              onClick={() => removeExpense(t.id)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

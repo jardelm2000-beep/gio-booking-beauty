@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { format, addDays, isBefore, startOfDay, isToday } from "date-fns";
+import { useEffect, useState } from "react";
+import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Clock, CheckCircle, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Clock, CheckCircle, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const services = [
   { id: "cilios", name: "Extensão de Cílios", duration: "1h30", price: 150 },
@@ -17,21 +19,62 @@ const services = [
   { id: "lifting", name: "Lash Lifting", duration: "1h", price: 120 },
 ];
 
-const timeSlots = [
-  "09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00",
-];
+const timeSlots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
 
 const BookingPage = () => {
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleConfirm = () => {
-    if (!name || !phone) {
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth?redirect=/agendar", { replace: true });
+      return;
+    }
+    if (user) {
+      // Pré-preenche com dados do perfil
+      supabase
+        .from("profiles")
+        .select("display_name, phone")
+        .eq("user_id", user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.display_name) setName(data.display_name);
+          if (data?.phone) setPhone(data.phone);
+        });
+    }
+  }, [user, loading, navigate]);
+
+  const handleConfirm = async () => {
+    if (!user || !selectedService || !selectedDate || !selectedTime) return;
+    if (!name.trim() || !phone.trim()) {
       toast.error("Preencha seu nome e telefone.");
+      return;
+    }
+    const service = services.find((s) => s.id === selectedService);
+    if (!service) return;
+
+    setSubmitting(true);
+    const { error } = await supabase.from("appointments").insert({
+      user_id: user.id,
+      client_name: name.trim().slice(0, 100),
+      client_phone: phone.trim().slice(0, 20),
+      service_name: service.name,
+      service_price: service.price,
+      appointment_date: format(selectedDate, "yyyy-MM-dd"),
+      appointment_time: selectedTime,
+      status: "pendente",
+    });
+    setSubmitting(false);
+
+    if (error) {
+      toast.error("Erro ao agendar: " + error.message);
       return;
     }
     setStep(4);
@@ -39,6 +82,14 @@ const BookingPage = () => {
   };
 
   const service = services.find((s) => s.id === selectedService);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground font-sans text-sm">Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,16 +103,12 @@ const BookingPage = () => {
           <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl">
             Agende seu <span className="text-gradient-gold italic">horário</span>
           </h1>
-          <p className="text-muted-foreground font-sans text-sm">
-            Passo {step} de 4
-          </p>
+          <p className="text-muted-foreground font-sans text-sm">Passo {step} de 4</p>
           <div className="flex gap-1 justify-center mt-3">
             {[1, 2, 3, 4].map((s) => (
               <div
                 key={s}
-                className={`h-1 w-12 rounded-full transition-colors ${
-                  s <= step ? "bg-primary" : "bg-border"
-                }`}
+                className={`h-1 w-12 rounded-full transition-colors ${s <= step ? "bg-primary" : "bg-border"}`}
               />
             ))}
           </div>
@@ -85,9 +132,7 @@ const BookingPage = () => {
                       <Clock className="w-3 h-3" /> {s.duration}
                     </p>
                   </div>
-                  <span className="text-primary font-sans font-medium text-sm">
-                    R$ {s.price}
-                  </span>
+                  <span className="text-primary font-sans font-medium text-sm">R$ {s.price}</span>
                 </CardContent>
               </Card>
             ))}
@@ -150,18 +195,21 @@ const BookingPage = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="bg-secondary border-border/50 font-sans"
+                  maxLength={100}
                 />
                 <Input
                   placeholder="WhatsApp (ex: 11 99999-9999)"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="bg-secondary border-border/50 font-sans"
+                  maxLength={20}
                 />
                 <Button
                   onClick={handleConfirm}
+                  disabled={submitting}
                   className="w-full bg-gradient-gold text-primary-foreground font-sans shadow-gold"
                 >
-                  Confirmar Agendamento
+                  {submitting ? "Agendando..." : "Confirmar Agendamento"}
                 </Button>
               </CardContent>
             </Card>

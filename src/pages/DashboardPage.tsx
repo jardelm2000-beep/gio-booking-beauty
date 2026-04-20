@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 type AppointmentRow = {
   id: string;
@@ -96,7 +97,7 @@ const DashboardPage = () => {
       .from("appointments")
       .update({ paid: !a.paid })
       .eq("id", a.id);
-    if (error) toast.error(error.message);
+    if (error) toast.error(safeErrorMessage(error, "Não foi possível atualizar o pagamento."));
     else toast.success(a.paid ? "Pagamento removido" : "Marcado como pago 💖");
   };
 
@@ -118,7 +119,7 @@ const DashboardPage = () => {
       created_by: user?.id,
     });
     if (error) {
-      toast.error(error.message);
+      toast.error(safeErrorMessage(error, "Não foi possível registrar a despesa."));
       return;
     }
     setNewDesc("");
@@ -128,7 +129,7 @@ const DashboardPage = () => {
 
   const removeExpense = async (id: string) => {
     const { error } = await supabase.from("expenses").delete().eq("id", id);
-    if (error) toast.error(error.message);
+    if (error) toast.error(safeErrorMessage(error, "Não foi possível remover a despesa."));
   };
 
   // Cálculos derivados

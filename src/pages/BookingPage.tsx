@@ -3,6 +3,7 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock, CheckCircle, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 const services = [
   { id: "cilios", name: "Extensão de Cílios", duration: "1h30", price: 150 },
@@ -20,6 +22,16 @@ const services = [
 ];
 
 const timeSlots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+
+const bookingSchema = z.object({
+  name: z.string().trim().min(2, "Nome muito curto").max(100, "Nome muito longo"),
+  phone: z
+    .string()
+    .trim()
+    .min(8, "Telefone inválido")
+    .max(20, "Telefone muito longo")
+    .regex(/^[\d\s()+\-]+$/, "Telefone inválido"),
+});
 
 const BookingPage = () => {
   const navigate = useNavigate();
@@ -53,28 +65,48 @@ const BookingPage = () => {
 
   const handleConfirm = async () => {
     if (!user || !selectedService || !selectedDate || !selectedTime) return;
-    if (!name.trim() || !phone.trim()) {
-      toast.error("Preencha seu nome e telefone.");
+
+    const parsed = bookingSchema.safeParse({ name, phone });
+    if (!parsed.success) {
+      toast.error(parsed.error.errors[0].message);
       return;
     }
     const service = services.find((s) => s.id === selectedService);
     if (!service) return;
 
     setSubmitting(true);
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+
+    // Pré-checagem de conflito (a constraint do banco é a fonte da verdade)
+    const { count } = await supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("appointment_date", dateStr)
+      .eq("appointment_time", selectedTime)
+      .neq("status", "cancelado");
+
+    if ((count ?? 0) > 0) {
+      setSubmitting(false);
+      toast.error("Este horário acabou de ser reservado. Escolha outro.");
+      setStep(2);
+      return;
+    }
+
+    // service_price será SOBRESCRITO pelo trigger no banco (defesa server-side)
     const { error } = await supabase.from("appointments").insert({
       user_id: user.id,
-      client_name: name.trim().slice(0, 100),
-      client_phone: phone.trim().slice(0, 20),
+      client_name: parsed.data.name,
+      client_phone: parsed.data.phone,
       service_name: service.name,
       service_price: service.price,
-      appointment_date: format(selectedDate, "yyyy-MM-dd"),
+      appointment_date: dateStr,
       appointment_time: selectedTime,
       status: "pendente",
     });
     setSubmitting(false);
 
     if (error) {
-      toast.error("Erro ao agendar: " + error.message);
+      toast.error(safeErrorMessage(error, "Não foi possível agendar. Tente novamente."));
       return;
     }
     setStep(4);

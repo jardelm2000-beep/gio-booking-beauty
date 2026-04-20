@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { safeErrorMessage } from "@/lib/safe-error";
 
 const signupSchema = z.object({
   name: z.string().trim().min(2, "Nome muito curto").max(100),
@@ -56,7 +57,11 @@ const AuthPage = () => {
           },
         });
         if (error) {
-          toast.error(error.message.includes("registered") ? "E-mail já cadastrado" : error.message);
+          toast.error(
+            error.message.includes("registered")
+              ? "E-mail já cadastrado"
+              : safeErrorMessage(error, "Não foi possível criar a conta."),
+          );
           return;
         }
         toast.success("Conta criada! 💖");
@@ -71,7 +76,11 @@ const AuthPage = () => {
           password: parsed.data.password,
         });
         if (error) {
-          toast.error(error.message.includes("Invalid") ? "E-mail ou senha incorretos" : error.message);
+          toast.error(
+            error.message.includes("Invalid")
+              ? "E-mail ou senha incorretos"
+              : safeErrorMessage(error, "Não foi possível entrar."),
+          );
           return;
         }
         toast.success("Bem-vinda de volta! 💖");

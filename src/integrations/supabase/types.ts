@@ -119,6 +119,33 @@ export type Database = {
         }
         Relationships: []
       }
+      services: {
+        Row: {
+          active: boolean
+          created_at: string
+          duration: string | null
+          id: string
+          name: string
+          price: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          duration?: string | null
+          id: string
+          name: string
+          price: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          duration?: string | null
+          id?: string
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

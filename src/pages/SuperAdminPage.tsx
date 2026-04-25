@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2 } from "lucide-react";
+import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,10 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
@@ -30,6 +34,9 @@ const SuperAdminPage = () => {
   const [listLoading, setListLoading] = useState(true);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [openCreate, setOpenCreate] = useState(false);
+  const [deletingTenant, setDeletingTenant] = useState<TenantItem | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // Reset tab title and any tenant-injected CSS vars from previous navigation
   useEffect(() => {
@@ -64,6 +71,40 @@ const SuperAdminPage = () => {
   useEffect(() => {
     if (user && isSuperAdmin) reload();
   }, [user, isSuperAdmin]);
+
+  const handleDelete = async () => {
+    if (!deletingTenant) return;
+    if (deleteConfirmText.trim() !== deletingTenant.slug) {
+      toast.error("Digite o slug exatamente para confirmar.");
+      return;
+    }
+    setDeleting(true);
+    const slugToDelete = deletingTenant.slug;
+    // Apaga dependências antes da marca (RLS permite super_admin)
+    const steps: Array<{ table: "appointments" | "expenses" | "services" | "user_roles" | "tenants"; label: string }> = [
+      { table: "appointments", label: "agendamentos" },
+      { table: "expenses", label: "despesas" },
+      { table: "services", label: "serviços" },
+      { table: "user_roles", label: "papéis de admin" },
+      { table: "tenants", label: "marca" },
+    ];
+    for (const step of steps) {
+      const q = step.table === "tenants"
+        ? supabase.from("tenants").delete().eq("slug", slugToDelete)
+        : supabase.from(step.table).delete().eq("tenant_slug", slugToDelete);
+      const { error } = await q;
+      if (error) {
+        setDeleting(false);
+        toast.error(safeErrorMessage(error, `Falha ao remover ${step.label}.`));
+        return;
+      }
+    }
+    setDeleting(false);
+    setDeletingTenant(null);
+    setDeleteConfirmText("");
+    toast.success(`Marca /${slugToDelete} removida.`);
+    reload();
+  };
 
   if (loading || !user) {
     return (
@@ -211,6 +252,15 @@ const SuperAdminPage = () => {
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setDeletingTenant(t); setDeleteConfirmText(""); }}
+                      className="font-sans text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                      aria-label={`Excluir ${t.name}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -218,6 +268,50 @@ const SuperAdminPage = () => {
           </div>
         )}
       </main>
+
+      <AlertDialog
+        open={!!deletingTenant}
+        onOpenChange={(o) => { if (!o) { setDeletingTenant(null); setDeleteConfirmText(""); } }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif">
+              Excluir marca {deletingTenant?.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-sans space-y-2">
+              <span className="block">
+                Esta ação é <strong>permanente</strong>. Serão removidos:
+              </span>
+              <span className="block text-xs">
+                • Página pública /{deletingTenant?.slug}<br />
+                • Todos os agendamentos, serviços e despesas<br />
+                • Vínculo de admin desta marca (a conta do usuário continua existindo)
+              </span>
+              <span className="block pt-2">
+                Para confirmar, digite o slug <span className="font-mono text-destructive">{deletingTenant?.slug}</span> abaixo:
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteConfirmText}
+            onChange={(e) => setDeleteConfirmText(e.target.value)}
+            placeholder={deletingTenant?.slug}
+            className="font-mono"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} className="font-sans">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting || deleteConfirmText.trim() !== deletingTenant?.slug}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-sans"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Excluir definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

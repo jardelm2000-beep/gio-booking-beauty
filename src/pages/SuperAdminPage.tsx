@@ -343,6 +343,10 @@ const CreateTenantDialog = ({
   const [slug, setSlug] = useState("");
   const [color, setColor] = useState("#C9A96E");
   const [saving, setSaving] = useState(false);
+  const [createOwner, setCreateOwner] = useState(true);
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerPassword, setOwnerPassword] = useState("");
+  const [ownerCpf, setOwnerCpf] = useState("");
 
   const handleNameChange = (v: string) => {
     setName(v);
@@ -366,6 +370,17 @@ const CreateTenantDialog = ({
     if (cleanSlug === "divas-plan" || cleanSlug === "auth") {
       return toast.error("Este slug é reservado.");
     }
+    if (createOwner) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())) {
+        return toast.error("E-mail da dona inválido.");
+      }
+      if (ownerPassword.length < 6) {
+        return toast.error("Senha da dona precisa de no mínimo 6 caracteres.");
+      }
+      if (!isValidCPF(ownerCpf)) {
+        return toast.error("CPF da dona inválido.");
+      }
+    }
     setSaving(true);
     const { error } = await supabase.from("tenants").insert({
       slug: cleanSlug,
@@ -373,13 +388,32 @@ const CreateTenantDialog = ({
       primary_color: color,
       active: true,
     });
-    setSaving(false);
     if (error) {
+      setSaving(false);
       toast.error(safeErrorMessage(error, "Não foi possível criar a marca."));
       return;
     }
+    if (createOwner) {
+      const { data, error: fnErr } = await supabase.functions.invoke("create-salon-owner", {
+        body: {
+          email: ownerEmail.trim().toLowerCase(),
+          password: ownerPassword,
+          cpf: ownerCpf.replace(/\D/g, ""),
+          tenant_slug: cleanSlug,
+          display_name: cleanName,
+        },
+      });
+      const errMsg = (data as { error?: string } | null)?.error ?? fnErr?.message;
+      if (errMsg) {
+        setSaving(false);
+        toast.error(`Marca criada, mas falhou ao cadastrar a dona: ${errMsg}`);
+        return;
+      }
+    }
+    setSaving(false);
     toast.success(`Marca /${cleanSlug} criada!`);
     setName(""); setSlug(""); setColor("#C9A96E");
+    setOwnerEmail(""); setOwnerPassword(""); setOwnerCpf(""); setCreateOwner(true);
     onCreated(cleanSlug);
   };
 
@@ -431,6 +465,56 @@ const CreateTenantDialog = ({
               />
             </div>
           </div>
+
+          <div className="border-t border-border/50 pt-4 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createOwner}
+                onChange={(e) => setCreateOwner(e.target.checked)}
+                className="accent-primary"
+              />
+              <span className="text-sm font-sans">Criar conta da dona do salão agora</span>
+            </label>
+            {createOwner && (
+              <div className="space-y-3 pl-6">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-sans uppercase tracking-wide text-muted-foreground">CPF</Label>
+                  <Input
+                    value={ownerCpf}
+                    onChange={(e) => setOwnerCpf(formatCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className="font-mono"
+                    inputMode="numeric"
+                    maxLength={14}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-sans uppercase tracking-wide text-muted-foreground">E-mail</Label>
+                  <Input
+                    type="email"
+                    value={ownerEmail}
+                    onChange={(e) => setOwnerEmail(e.target.value)}
+                    placeholder="dona@salao.com"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-sans uppercase tracking-wide text-muted-foreground">Senha temporária</Label>
+                  <Input
+                    type="text"
+                    value={ownerPassword}
+                    onChange={(e) => setOwnerPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="off"
+                  />
+                  <p className="text-[11px] text-muted-foreground font-sans">
+                    Envie esses dados para a dona — ela poderá trocar a senha depois.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} className="font-sans">
@@ -447,3 +531,121 @@ const CreateTenantDialog = ({
 };
 
 export default SuperAdminPage;
+
+// ===== CPF helpers =====
+const formatCPF = (v: string) => {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  return d
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+};
+
+const isValidCPF = (raw: string) => {
+  const cpf = raw.replace(/\D/g, "");
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  const calc = (factor: number) => {
+    let total = 0;
+    for (let i = 0; i < factor - 1; i++) total += parseInt(cpf[i]) * (factor - i);
+    const r = (total * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  return calc(10) === parseInt(cpf[9]) && calc(11) === parseInt(cpf[10]);
+};
+
+// ===== Add Owner to existing tenant dialog =====
+const AddOwnerDialog = ({
+  tenant,
+  onClose,
+}: {
+  tenant: TenantItem | null;
+  onClose: () => void;
+}) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!tenant) { setEmail(""); setPassword(""); setCpf(""); }
+  }, [tenant]);
+
+  const submit = async () => {
+    if (!tenant) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return toast.error("E-mail inválido.");
+    }
+    if (password.length < 6) return toast.error("Senha precisa de no mínimo 6 caracteres.");
+    if (!isValidCPF(cpf)) return toast.error("CPF inválido.");
+    setSaving(true);
+    const { data, error } = await supabase.functions.invoke("create-salon-owner", {
+      body: {
+        email: email.trim().toLowerCase(),
+        password,
+        cpf: cpf.replace(/\D/g, ""),
+        tenant_slug: tenant.slug,
+        display_name: tenant.name,
+      },
+    });
+    setSaving(false);
+    const errMsg = (data as { error?: string } | null)?.error ?? error?.message;
+    if (errMsg) return toast.error(errMsg);
+    toast.success(`Dona cadastrada para /${tenant.slug}!`);
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!tenant} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="font-serif">
+            Adicionar dona em {tenant?.name}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-sans uppercase tracking-wide text-muted-foreground">CPF</Label>
+            <Input
+              value={cpf}
+              onChange={(e) => setCpf(formatCPF(e.target.value))}
+              placeholder="000.000.000-00"
+              className="font-mono"
+              inputMode="numeric"
+              maxLength={14}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-sans uppercase tracking-wide text-muted-foreground">E-mail</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="dona@salao.com"
+              autoComplete="off"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-sans uppercase tracking-wide text-muted-foreground">Senha temporária</Label>
+            <Input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} className="font-sans" disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={submit} disabled={saving} className="bg-gradient-gold text-primary-foreground font-sans">
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
+            Cadastrar dona
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

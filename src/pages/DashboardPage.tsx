@@ -49,7 +49,7 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const { tenant } = useBrand();
-  const { user, isAdmin, loading, signOut } = useAuth();
+  const { user, isAdmin, isSuperAdmin, loading, signOut } = useAuth();
   const [tab, setTab] = useState<"overview" | "agenda" | "finance" | "page">("overview");
   const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
@@ -205,8 +205,15 @@ const DashboardPage = () => {
     { key: "overview" as const, icon: LayoutDashboard, label: "Visão Geral" },
     { key: "agenda" as const, icon: CalIcon, label: "Agenda" },
     { key: "finance" as const, icon: Wallet, label: "Financeiro" },
-    { key: "page" as const, icon: Palette, label: "Página" },
+    ...(isSuperAdmin
+      ? [{ key: "page" as const, icon: Palette, label: "Página" }]
+      : []),
   ];
+
+  // Garante que admin comum nunca fique preso na aba "page"
+  useEffect(() => {
+    if (tab === "page" && !isSuperAdmin) setTab("overview");
+  }, [tab, isSuperAdmin]);
 
   // Loading
   if (loading) {
@@ -295,7 +302,7 @@ const DashboardPage = () => {
             {tab === "page" && "Editar Página"}
           </h1>
 
-          {tab === "page" && slug && <BrandEditor slug={slug} />}
+          {tab === "page" && slug && isSuperAdmin && <BrandEditor slug={slug} />}
 
           {dataLoading && (
             <p className="text-muted-foreground font-sans text-sm">Carregando dados...</p>

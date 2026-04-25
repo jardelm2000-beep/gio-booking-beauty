@@ -5,6 +5,11 @@ import {
   CalendarDays, DollarSign, TrendingUp, TrendingDown, Plus, Trash2,
   LayoutDashboard, Calendar as CalIcon, Wallet, LogOut, CheckCircle2, Tag, Lock, Palette,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,12 +102,37 @@ const DashboardPage = () => {
   }, [user, isAdmin, slug]);
 
   const togglePaid = async (a: AppointmentRow) => {
+    // Atualização otimista: UI responde imediatamente
+    const newPaid = !a.paid;
+    setAppointments((prev) =>
+      prev.map((x) => (x.id === a.id ? { ...x, paid: newPaid } : x)),
+    );
     const { error } = await supabase
       .from("appointments")
       .update({ paid: !a.paid })
       .eq("id", a.id);
-    if (error) toast.error(safeErrorMessage(error, "Não foi possível atualizar o pagamento."));
-    else toast.success(a.paid ? "Pagamento removido" : "Marcado como pago 💖");
+    if (error) {
+      // Reverte em caso de erro
+      setAppointments((prev) =>
+        prev.map((x) => (x.id === a.id ? { ...x, paid: a.paid } : x)),
+      );
+      toast.error(safeErrorMessage(error, "Não foi possível atualizar o pagamento."));
+    } else {
+      toast.success(a.paid ? "Pagamento removido" : "Marcado como pago 💖");
+    }
+  };
+
+  const deleteAppointment = async (a: AppointmentRow) => {
+    // Atualização otimista
+    const prev = appointments;
+    setAppointments((p) => p.filter((x) => x.id !== a.id));
+    const { error } = await supabase.from("appointments").delete().eq("id", a.id);
+    if (error) {
+      setAppointments(prev);
+      toast.error(safeErrorMessage(error, "Não foi possível excluir o agendamento."));
+    } else {
+      toast.success("Agendamento excluído");
+    }
   };
 
   const addExpense = async () => {
@@ -134,8 +164,13 @@ const DashboardPage = () => {
   };
 
   const removeExpense = async (id: string) => {
+    const prev = expenses;
+    setExpenses((p) => p.filter((x) => x.id !== id));
     const { error } = await supabase.from("expenses").delete().eq("id", id);
-    if (error) toast.error(safeErrorMessage(error, "Não foi possível remover a despesa."));
+    if (error) {
+      setExpenses(prev);
+      toast.error(safeErrorMessage(error, "Não foi possível remover a despesa."));
+    }
   };
 
   // Cálculos derivados

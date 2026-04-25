@@ -190,6 +190,7 @@ export type Database = {
           background_color: string
           bio: string | null
           created_at: string
+          deleted_at: string | null
           gallery: string[]
           hero_image_url: string | null
           hero_subtitle: string | null
@@ -209,6 +210,7 @@ export type Database = {
           background_color?: string
           bio?: string | null
           created_at?: string
+          deleted_at?: string | null
           gallery?: string[]
           hero_image_url?: string | null
           hero_subtitle?: string | null
@@ -228,6 +230,7 @@ export type Database = {
           background_color?: string
           bio?: string | null
           created_at?: string
+          deleted_at?: string | null
           gallery?: string[]
           hero_image_url?: string | null
           hero_subtitle?: string | null

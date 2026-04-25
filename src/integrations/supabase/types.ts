@@ -285,6 +285,7 @@ export type Database = {
         Args: { _tenant: string; _user_id: string }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "cliente" | "super_admin"

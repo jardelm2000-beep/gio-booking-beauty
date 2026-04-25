@@ -498,6 +498,38 @@ const DashboardPage = () => {
                             <CheckCircle2 className="w-3 h-3 mr-1" />
                             {a.paid ? "Pagamento confirmado" : "Marcar como pago"}
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-full font-sans text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" />
+                                Excluir agendamento
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="font-serif">Excluir agendamento?</AlertDialogTitle>
+                                <AlertDialogDescription className="font-sans">
+                                  Tem certeza que deseja excluir o agendamento de{" "}
+                                  <strong>{a.client_name}</strong> em{" "}
+                                  {format(parseISO(a.appointment_date), "dd/MM")} às {a.appointment_time}?
+                                  Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="font-sans">Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteAppointment(a)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-sans"
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </CardContent>
                       </Card>
                     ))}

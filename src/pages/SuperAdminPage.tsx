@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2, UserPlus } from "lucide-react";
+import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2, UserPlus, RotateCcw, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ type TenantItem = {
   name: string;
   primary_color: string;
   active: boolean;
+  deleted_at: string | null;
 };
 
 const slugRe = /^[a-z0-9-]{2,50}$/;
@@ -38,6 +39,10 @@ const SuperAdminPage = () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [ownerForTenant, setOwnerForTenant] = useState<TenantItem | null>(null);
+  const [showTrash, setShowTrash] = useState(false);
+  const [purgingTenant, setPurgingTenant] = useState<TenantItem | null>(null);
+  const [purgeConfirmText, setPurgeConfirmText] = useState("");
+  const [purging, setPurging] = useState(false);
 
   // Reset tab title and any tenant-injected CSS vars from previous navigation
   useEffect(() => {
@@ -62,7 +67,7 @@ const SuperAdminPage = () => {
     setListLoading(true);
     const { data, error } = await supabase
       .from("tenants")
-      .select("slug,name,primary_color,active")
+      .select("slug,name,primary_color,active,deleted_at")
       .order("name");
     if (error) toast.error(safeErrorMessage(error, "Erro ao carregar marcas."));
     setTenants((data as TenantItem[]) ?? []);
@@ -73,6 +78,10 @@ const SuperAdminPage = () => {
     if (user && isSuperAdmin) reload();
   }, [user, isSuperAdmin]);
 
+  const activeTenants = tenants.filter((t) => !t.deleted_at);
+  const trashedTenants = tenants.filter((t) => !!t.deleted_at);
+
+  // Soft delete: move to trash (keeps all data, just hides from public/list)
   const handleDelete = async () => {
     if (!deletingTenant) return;
     if (deleteConfirmText.trim() !== deletingTenant.slug) {
@@ -81,7 +90,48 @@ const SuperAdminPage = () => {
     }
     setDeleting(true);
     const slugToDelete = deletingTenant.slug;
-    // Apaga dependências antes da marca (RLS permite super_admin)
+    const { error } = await supabase
+      .from("tenants")
+      .update({ deleted_at: new Date().toISOString(), active: false })
+      .eq("slug", slugToDelete);
+    if (error) {
+      setDeleting(false);
+      toast.error(safeErrorMessage(error, "Falha ao mover para a lixeira."));
+      return;
+    }
+    setDeleting(false);
+    setDeletingTenant(null);
+    setDeleteConfirmText("");
+    toast.success(`Marca /${slugToDelete} movida para a lixeira.`);
+    reload();
+  };
+
+  const restoreTenant = async (t: TenantItem) => {
+    // Optimistic
+    setTenants((prev) => prev.map((x) =>
+      x.slug === t.slug ? { ...x, deleted_at: null, active: true } : x,
+    ));
+    const { error } = await supabase
+      .from("tenants")
+      .update({ deleted_at: null, active: true })
+      .eq("slug", t.slug);
+    if (error) {
+      toast.error(safeErrorMessage(error, "Falha ao restaurar."));
+      reload();
+      return;
+    }
+    toast.success(`Marca /${t.slug} restaurada.`);
+  };
+
+  // Hard delete: only from trash, with explicit slug confirmation
+  const handlePurge = async () => {
+    if (!purgingTenant) return;
+    if (purgeConfirmText.trim() !== purgingTenant.slug) {
+      toast.error("Digite o slug exatamente para confirmar.");
+      return;
+    }
+    setPurging(true);
+    const slugToPurge = purgingTenant.slug;
     const steps: Array<{ table: "appointments" | "expenses" | "services" | "user_roles" | "tenants"; label: string }> = [
       { table: "appointments", label: "agendamentos" },
       { table: "expenses", label: "despesas" },
@@ -91,19 +141,19 @@ const SuperAdminPage = () => {
     ];
     for (const step of steps) {
       const q = step.table === "tenants"
-        ? supabase.from("tenants").delete().eq("slug", slugToDelete)
-        : supabase.from(step.table).delete().eq("tenant_slug", slugToDelete);
+        ? supabase.from("tenants").delete().eq("slug", slugToPurge)
+        : supabase.from(step.table).delete().eq("tenant_slug", slugToPurge);
       const { error } = await q;
       if (error) {
-        setDeleting(false);
+        setPurging(false);
         toast.error(safeErrorMessage(error, `Falha ao remover ${step.label}.`));
         return;
       }
     }
-    setDeleting(false);
-    setDeletingTenant(null);
-    setDeleteConfirmText("");
-    toast.success(`Marca /${slugToDelete} removida.`);
+    setPurging(false);
+    setPurgingTenant(null);
+    setPurgeConfirmText("");
+    toast.success(`Marca /${slugToPurge} apagada definitivamente.`);
     reload();
   };
 
@@ -196,30 +246,97 @@ const SuperAdminPage = () => {
       <main className="pt-24 pb-12 container mx-auto max-w-5xl px-4">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-8">
           <div>
-            <h1 className="font-serif text-2xl sm:text-3xl">Marcas cadastradas</h1>
+            <h1 className="font-serif text-2xl sm:text-3xl">
+              {showTrash ? "Lixeira" : "Marcas cadastradas"}
+            </h1>
             <p className="text-xs text-muted-foreground font-sans mt-1">
-              Edite páginas existentes ou cadastre uma nova profissional.
+              {showTrash
+                ? "Restaure marcas excluídas ou apague definitivamente."
+                : "Edite páginas existentes ou cadastre uma nova profissional."}
             </p>
           </div>
-          <CreateTenantDialog
-            open={openCreate}
-            onOpenChange={setOpenCreate}
-            onCreated={(slug) => {
-              setOpenCreate(false);
-              reload().then(() => setEditingSlug(slug));
-            }}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTrash((v) => !v)}
+              className="font-sans"
+            >
+              {showTrash ? (
+                <><ArrowLeft className="w-4 h-4 mr-2" /> Voltar às marcas</>
+              ) : (
+                <><Archive className="w-4 h-4 mr-2" /> Lixeira{trashedTenants.length > 0 ? ` (${trashedTenants.length})` : ""}</>
+              )}
+            </Button>
+            {!showTrash && (
+              <CreateTenantDialog
+                open={openCreate}
+                onOpenChange={setOpenCreate}
+                onCreated={(slug) => {
+                  setOpenCreate(false);
+                  reload().then(() => setEditingSlug(slug));
+                }}
+              />
+            )}
+          </div>
         </div>
 
         {listLoading ? (
           <p className="text-muted-foreground font-sans text-sm">Carregando marcas...</p>
-        ) : tenants.length === 0 ? (
+        ) : showTrash ? (
+          trashedTenants.length === 0 ? (
+            <p className="text-muted-foreground font-sans text-sm">A lixeira está vazia.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {trashedTenants.map((t) => (
+                <Card key={t.slug} className="border-border/50 opacity-80">
+                  <CardContent className="p-5 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: t.primary_color }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-serif text-lg truncate">{t.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">/{t.slug}</p>
+                        {t.deleted_at && (
+                          <p className="text-[10px] text-muted-foreground font-sans mt-0.5">
+                            Excluída em {new Date(t.deleted_at).toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => restoreTenant(t)}
+                        className="flex-1 font-sans text-xs"
+                      >
+                        <RotateCcw className="w-3 h-3 mr-1.5" /> Restaurar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setPurgingTenant(t); setPurgeConfirmText(""); }}
+                        className="font-sans text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        aria-label={`Apagar definitivamente ${t.name}`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )
+        ) : activeTenants.length === 0 ? (
           <p className="text-muted-foreground font-sans text-sm">
             Nenhuma marca cadastrada ainda.
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tenants.map((t) => (
+            {activeTenants.map((t) => (
               <Card key={t.slug} className="border-border/50 hover:border-primary/40 transition-all">
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-center gap-3">
@@ -287,16 +404,15 @@ const SuperAdminPage = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-serif">
-              Excluir marca {deletingTenant?.name}?
+              Mover {deletingTenant?.name} para a lixeira?
             </AlertDialogTitle>
             <AlertDialogDescription className="font-sans space-y-2">
               <span className="block">
-                Esta ação é <strong>permanente</strong>. Serão removidos:
+                A marca ficará <strong>oculta</strong> do público e da lista principal,
+                mas <strong>todos os dados são preservados</strong> (agendamentos, serviços, despesas e vínculos de admin).
               </span>
               <span className="block text-xs">
-                • Página pública /{deletingTenant?.slug}<br />
-                • Todos os agendamentos, serviços e despesas<br />
-                • Vínculo de admin desta marca (a conta do usuário continua existindo)
+                Você pode <strong>restaurar a qualquer momento</strong> pela aba "Lixeira".
               </span>
               <span className="block pt-2">
                 Para confirmar, digite o slug <span className="font-mono text-destructive">{deletingTenant?.slug}</span> abaixo:
@@ -318,7 +434,51 @@ const SuperAdminPage = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-sans"
             >
               {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-              Excluir definitivamente
+              Mover para a lixeira
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!purgingTenant}
+        onOpenChange={(o) => { if (!o) { setPurgingTenant(null); setPurgeConfirmText(""); } }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif">
+              Apagar {purgingTenant?.name} definitivamente?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-sans space-y-2">
+              <span className="block">
+                Esta ação é <strong>permanente e não pode ser desfeita</strong>. Serão removidos:
+              </span>
+              <span className="block text-xs">
+                • Página pública /{purgingTenant?.slug}<br />
+                • Todos os agendamentos, serviços e despesas<br />
+                • Vínculo de admin (a conta do usuário continua existindo)
+              </span>
+              <span className="block pt-2">
+                Para confirmar, digite o slug <span className="font-mono text-destructive">{purgingTenant?.slug}</span> abaixo:
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={purgeConfirmText}
+            onChange={(e) => setPurgeConfirmText(e.target.value)}
+            placeholder={purgingTenant?.slug}
+            className="font-mono"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={purging} className="font-sans">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handlePurge(); }}
+              disabled={purging || purgeConfirmText.trim() !== purgingTenant?.slug}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-sans"
+            >
+              {purging ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Apagar definitivamente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

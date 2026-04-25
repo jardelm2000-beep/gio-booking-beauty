@@ -188,6 +188,23 @@ const BrandEditor = ({ slug }: Props) => {
               />
             </div>
           </Field>
+          <Field label="Cor de fundo (HEX)">
+            <div className="flex items-center gap-2">
+              <Input
+                value={data.background_color ?? "#0F0D0B"}
+                onChange={(e) => set("background_color", e.target.value)}
+                maxLength={7}
+                className="font-mono"
+              />
+              <input
+                type="color"
+                value={data.background_color ?? "#0F0D0B"}
+                onChange={(e) => set("background_color", e.target.value)}
+                className="h-10 w-12 rounded border border-border bg-transparent cursor-pointer"
+                aria-label="Selecionar cor de fundo"
+              />
+            </div>
+          </Field>
           <ImageField
             label="Logo"
             url={data.logo_url}

@@ -27,6 +27,7 @@ export type Database = {
           service_name: string
           service_price: number
           status: Database["public"]["Enums"]["appointment_status"]
+          tenant_slug: string
           updated_at: string
           user_id: string | null
         }
@@ -42,6 +43,7 @@ export type Database = {
           service_name: string
           service_price?: number
           status?: Database["public"]["Enums"]["appointment_status"]
+          tenant_slug: string
           updated_at?: string
           user_id?: string | null
         }
@@ -57,10 +59,19 @@ export type Database = {
           service_name?: string
           service_price?: number
           status?: Database["public"]["Enums"]["appointment_status"]
+          tenant_slug?: string
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "appointments_tenant_fk"
+            columns: ["tenant_slug"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["slug"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -71,6 +82,7 @@ export type Database = {
           description: string
           expense_date: string
           id: string
+          tenant_slug: string
         }
         Insert: {
           amount: number
@@ -80,6 +92,7 @@ export type Database = {
           description: string
           expense_date?: string
           id?: string
+          tenant_slug: string
         }
         Update: {
           amount?: number
@@ -89,8 +102,17 @@ export type Database = {
           description?: string
           expense_date?: string
           id?: string
+          tenant_slug?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expenses_tenant_fk"
+            columns: ["tenant_slug"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["slug"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -127,6 +149,7 @@ export type Database = {
           id: string
           name: string
           price: number
+          tenant_slug: string
         }
         Insert: {
           active?: boolean
@@ -135,6 +158,7 @@ export type Database = {
           id: string
           name: string
           price: number
+          tenant_slug: string
         }
         Update: {
           active?: boolean
@@ -143,6 +167,63 @@ export type Database = {
           id?: string
           name?: string
           price?: number
+          tenant_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_tenant_fk"
+            columns: ["tenant_slug"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          about_photo_url: string | null
+          about_text: string | null
+          active: boolean
+          created_at: string
+          hero_subtitle: string | null
+          hero_title: string | null
+          instagram_handle: string | null
+          logo_url: string | null
+          name: string
+          primary_color: string
+          slug: string
+          updated_at: string
+          whatsapp_url: string | null
+        }
+        Insert: {
+          about_photo_url?: string | null
+          about_text?: string | null
+          active?: boolean
+          created_at?: string
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          instagram_handle?: string | null
+          logo_url?: string | null
+          name: string
+          primary_color?: string
+          slug: string
+          updated_at?: string
+          whatsapp_url?: string | null
+        }
+        Update: {
+          about_photo_url?: string | null
+          about_text?: string | null
+          active?: boolean
+          created_at?: string
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          instagram_handle?: string | null
+          logo_url?: string | null
+          name?: string
+          primary_color?: string
+          slug?: string
+          updated_at?: string
+          whatsapp_url?: string | null
         }
         Relationships: []
       }
@@ -151,32 +232,48 @@ export type Database = {
           created_at: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          tenant_slug: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           role: Database["public"]["Enums"]["app_role"]
+          tenant_slug?: string | null
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          tenant_slug?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_tenant_fk"
+            columns: ["tenant_slug"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["slug"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      admin_tenant_slug: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_admin_of: {
+        Args: { _tenant: string; _user_id: string }
         Returns: boolean
       }
     }

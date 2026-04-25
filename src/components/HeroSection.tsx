@@ -12,11 +12,12 @@ const HeroSection = () => {
   const titleParts = title.split(" ");
   const titleHead = titleParts.slice(0, -1).join(" ");
   const titleTail = titleParts.slice(-1)[0];
+  const bg = tenant.hero_image_url || heroBg;
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroBg})` }}
+        style={{ backgroundImage: `url(${bg})` }}
       />
       <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/60 to-background" />
 

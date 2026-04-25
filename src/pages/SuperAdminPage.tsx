@@ -424,6 +424,8 @@ const SuperAdminPage = () => {
             ))}
           </div>
         )}
+        </>
+        )}
       </main>
 
       <AlertDialog

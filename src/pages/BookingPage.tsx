@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, CheckCircle, ArrowLeft } from "lucide-react";
+import { Clock, CheckCircle, ArrowLeft, MessageCircle } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { Calendar } from "@/components/ui/calendar";
@@ -267,9 +267,31 @@ const BookingPage = () => {
             <p className="text-muted-foreground font-sans text-xs">
               Entraremos em contato pelo WhatsApp para confirmar 💖
             </p>
-            <Button asChild variant="outline" className="border-primary/30 text-primary font-sans">
-              <Link to={`/${slug}`}>Voltar ao Início</Link>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+              {tenant.whatsapp_url && (
+                <Button
+                  asChild
+                  className="bg-[#25D366] hover:bg-[#1FAE54] text-white font-sans"
+                >
+                  <a
+                    href={buildWhatsAppLink(
+                      tenant.whatsapp_url,
+                      `Olá! Acabei de agendar ${service?.name} para ${
+                        selectedDate ? format(selectedDate, "dd/MM/yyyy") : ""
+                      } às ${selectedTime}. Meu nome é ${name}.`
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Falar no WhatsApp
+                  </a>
+                </Button>
+              )}
+              <Button asChild variant="outline" className="border-primary/30 text-primary font-sans">
+                <Link to={`/${slug}`}>Voltar ao Início</Link>
+              </Button>
+            </div>
           </div>
         )}
 
@@ -289,3 +311,16 @@ const BookingPage = () => {
 };
 
 export default BookingPage;
+
+function buildWhatsAppLink(raw: string, message: string): string {
+  const text = encodeURIComponent(message);
+  const trimmed = raw.trim();
+  // Already a full wa.me / api.whatsapp link
+  if (/^https?:\/\//i.test(trimmed)) {
+    const sep = trimmed.includes("?") ? "&" : "?";
+    return /[?&]text=/.test(trimmed) ? trimmed : `${trimmed}${sep}text=${text}`;
+  }
+  // Otherwise treat as a phone number
+  const digits = trimmed.replace(/\D/g, "");
+  return `https://wa.me/${digits}?text=${text}`;
+}

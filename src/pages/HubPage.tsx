@@ -1,9 +1,18 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, Heart, Rocket, Users, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const HubPage = () => {
+  useEffect(() => {
+    document.title = "Divas Plan | Plataforma para micro-empresárias da beleza";
+    // Reset any tenant-injected CSS vars from previous navigation
+    document.documentElement.style.removeProperty("--primary");
+    document.documentElement.style.removeProperty("--gold");
+    document.documentElement.style.removeProperty("--ring");
+    document.documentElement.style.removeProperty("--background");
+  }, []);
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}

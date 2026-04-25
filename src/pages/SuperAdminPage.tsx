@@ -31,6 +31,17 @@ const SuperAdminPage = () => {
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [openCreate, setOpenCreate] = useState(false);
 
+  // Reset tab title and any tenant-injected CSS vars from previous navigation
+  useEffect(() => {
+    document.title = editingSlug
+      ? `Divas Plan · Editando /${editingSlug}`
+      : "Divas Plan · Painel";
+    document.documentElement.style.removeProperty("--primary");
+    document.documentElement.style.removeProperty("--gold");
+    document.documentElement.style.removeProperty("--ring");
+    document.documentElement.style.removeProperty("--background");
+  }, [editingSlug]);
+
   // Auth gate
   useEffect(() => {
     if (loading) return;

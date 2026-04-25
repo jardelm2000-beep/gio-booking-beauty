@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock, CheckCircle, ArrowLeft } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,7 @@ import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
-
-const services = [
-  { id: "cilios", name: "Extensão de Cílios", duration: "1h30", price: 150 },
-  { id: "sobrancelha", name: "Design de Sobrancelhas", duration: "40min", price: 60 },
-  { id: "lifting", name: "Lash Lifting", duration: "1h", price: 120 },
-];
+import { useBrand } from "@/hooks/useBrand";
 
 const timeSlots = ["09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
 
@@ -35,6 +30,8 @@ const bookingSchema = z.object({
 
 const BookingPage = () => {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug: string }>();
+  const { tenant, services } = useBrand();
   const { user, loading } = useAuth();
   const [step, setStep] = useState(1);
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -44,9 +41,17 @@ const BookingPage = () => {
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Reseta estado ao trocar de marca (evita reservar para a marca errada)
+  useEffect(() => {
+    setStep(1);
+    setSelectedService(null);
+    setSelectedDate(undefined);
+    setSelectedTime(null);
+  }, [slug]);
+
   useEffect(() => {
     if (!loading && !user) {
-      navigate("/auth?redirect=/agendar", { replace: true });
+      navigate(`/auth?redirect=/${slug}/agendar`, { replace: true });
       return;
     }
     if (user) {
@@ -61,10 +66,10 @@ const BookingPage = () => {
           if (data?.phone) setPhone(data.phone);
         });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, slug]);
 
   const handleConfirm = async () => {
-    if (!user || !selectedService || !selectedDate || !selectedTime) return;
+    if (!user || !selectedService || !selectedDate || !selectedTime || !slug) return;
 
     const parsed = bookingSchema.safeParse({ name, phone });
     if (!parsed.success) {
@@ -77,10 +82,11 @@ const BookingPage = () => {
     setSubmitting(true);
     const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-    // Pré-checagem de conflito (a constraint do banco é a fonte da verdade)
+    // Pré-checagem de conflito por marca (a constraint do banco é a fonte da verdade)
     const { count } = await supabase
       .from("appointments")
       .select("id", { count: "exact", head: true })
+      .eq("tenant_slug", slug)
       .eq("appointment_date", dateStr)
       .eq("appointment_time", selectedTime)
       .neq("status", "cancelado");
@@ -95,6 +101,7 @@ const BookingPage = () => {
     // service_price será SOBRESCRITO pelo trigger no banco (defesa server-side)
     const { error } = await supabase.from("appointments").insert({
       user_id: user.id,
+      tenant_slug: slug,
       client_name: parsed.data.name,
       client_phone: parsed.data.phone,
       service_name: service.name,
@@ -127,7 +134,7 @@ const BookingPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="pt-24 pb-16 container mx-auto px-4 max-w-2xl">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-sm font-sans mb-8">
+        <Link to={`/${slug}`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors text-sm font-sans mb-8">
           <ArrowLeft className="w-4 h-4" /> Voltar
         </Link>
 
@@ -161,7 +168,7 @@ const BookingPage = () => {
                   <div>
                     <p className="font-sans font-medium">{s.name}</p>
                     <p className="text-muted-foreground text-xs font-sans flex items-center gap-1 mt-1">
-                      <Clock className="w-3 h-3" /> {s.duration}
+                      <Clock className="w-3 h-3" /> {s.duration ?? "Sob consulta"}
                     </p>
                   </div>
                   <span className="text-primary font-sans font-medium text-sm">R$ {s.price}</span>
@@ -261,7 +268,7 @@ const BookingPage = () => {
               Entraremos em contato pelo WhatsApp para confirmar 💖
             </p>
             <Button asChild variant="outline" className="border-primary/30 text-primary font-sans">
-              <Link to="/">Voltar ao Início</Link>
+              <Link to={`/${slug}`}>Voltar ao Início</Link>
             </Button>
           </div>
         )}

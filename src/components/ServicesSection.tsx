@@ -1,33 +1,12 @@
-import { Link } from "react-router-dom";
-import { Eye, Paintbrush, Sparkles, Clock, ArrowRight } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { Clock, ArrowRight, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-const services = [
-  {
-    icon: Eye,
-    title: "Extensão de Cílios",
-    description: "Fio a fio, volume brasileiro e mega volume. Olhar poderoso e natural.",
-    duration: "1h30 — 2h",
-    price: "A partir de R$ 150",
-  },
-  {
-    icon: Paintbrush,
-    title: "Design de Sobrancelhas",
-    description: "Modelagem perfeita com henna ou tintura para valorizar seu rosto.",
-    duration: "40min",
-    price: "A partir de R$ 60",
-  },
-  {
-    icon: Sparkles,
-    title: "Lash Lifting",
-    description: "Curvatura e tintura dos cílios naturais para um efeito duradouro.",
-    duration: "1h",
-    price: "A partir de R$ 120",
-  },
-];
+import { useBrand } from "@/hooks/useBrand";
 
 const ServicesSection = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const { services } = useBrand();
   return (
     <section id="servicos" className="py-20 sm:py-28">
       <div className="container mx-auto px-4">
@@ -43,25 +22,22 @@ const ServicesSection = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-5xl mx-auto">
           {services.map((service, i) => (
             <Card
-              key={service.title}
+              key={service.id}
               className="bg-card border-border/50 hover:border-primary/30 transition-all duration-500 group overflow-hidden"
               style={{ animationDelay: `${i * 150}ms` }}
             >
               <CardContent className="p-6 sm:p-8 space-y-5">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <service.icon className="w-5 h-5 text-primary" />
+                  <Sparkles className="w-5 h-5 text-primary" />
                 </div>
-                <h3 className="font-serif text-xl">{service.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed font-sans">
-                  {service.description}
-                </p>
+                <h3 className="font-serif text-xl">{service.name}</h3>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground font-sans">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>{service.duration}</span>
+                  <span>{service.duration ?? "Sob consulta"}</span>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-border/50">
                   <span className="text-primary font-sans text-sm font-medium">
-                    {service.price}
+                    A partir de R$ {Number(service.price).toFixed(0)}
                   </span>
                   <Button
                     asChild
@@ -69,7 +45,7 @@ const ServicesSection = () => {
                     size="sm"
                     className="text-primary hover:bg-primary/10 p-0 h-auto font-sans"
                   >
-                    <Link to="/agendar">
+                    <Link to={`/${slug}/agendar`}>
                       Agendar <ArrowRight className="w-4 h-4 ml-1" />
                     </Link>
                   </Button>

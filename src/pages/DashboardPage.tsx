@@ -3,7 +3,7 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, parseISO
 import { ptBR } from "date-fns/locale";
 import {
   CalendarDays, DollarSign, TrendingUp, TrendingDown, Plus, Trash2,
-  LayoutDashboard, Calendar as CalIcon, Wallet, LogOut, CheckCircle2, Tag, Lock,
+  LayoutDashboard, Calendar as CalIcon, Wallet, LogOut, CheckCircle2, Tag, Lock, Palette,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
 import { useBrand } from "@/hooks/useBrand";
+import BrandEditor from "@/components/admin/BrandEditor";
 
 type AppointmentRow = {
   id: string;
@@ -49,7 +50,7 @@ const DashboardPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const { tenant } = useBrand();
   const { user, isAdmin, loading, signOut } = useAuth();
-  const [tab, setTab] = useState<"overview" | "agenda" | "finance">("overview");
+  const [tab, setTab] = useState<"overview" | "agenda" | "finance" | "page">("overview");
   const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
@@ -204,6 +205,7 @@ const DashboardPage = () => {
     { key: "overview" as const, icon: LayoutDashboard, label: "Visão Geral" },
     { key: "agenda" as const, icon: CalIcon, label: "Agenda" },
     { key: "finance" as const, icon: Wallet, label: "Financeiro" },
+    { key: "page" as const, icon: Palette, label: "Página" },
   ];
 
   // Loading
@@ -290,7 +292,10 @@ const DashboardPage = () => {
             {tab === "overview" && "Visão Geral"}
             {tab === "agenda" && "Agenda"}
             {tab === "finance" && "Fluxo de Caixa"}
+            {tab === "page" && "Editar Página"}
           </h1>
+
+          {tab === "page" && slug && <BrandEditor slug={slug} />}
 
           {dataLoading && (
             <p className="text-muted-foreground font-sans text-sm">Carregando dados...</p>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2, UserPlus, RotateCcw, Archive } from "lucide-react";
+import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2, UserPlus, RotateCcw, Archive, Users, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,7 @@ const SuperAdminPage = () => {
   const [purgingTenant, setPurgingTenant] = useState<TenantItem | null>(null);
   const [purgeConfirmText, setPurgeConfirmText] = useState("");
   const [purging, setPurging] = useState(false);
+  const [view, setView] = useState<"tenants" | "owners">("tenants");
 
   // Reset tab title and any tenant-injected CSS vars from previous navigation
   useEffect(() => {

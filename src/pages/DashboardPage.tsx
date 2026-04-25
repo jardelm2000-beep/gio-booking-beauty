@@ -439,7 +439,15 @@ const DashboardPage = () => {
                             <div className="min-w-0">
                               <p className="font-sans text-sm font-medium truncate">{a.client_name}</p>
                               <p className="text-xs text-muted-foreground font-sans">{a.service_name} · {a.appointment_time}</p>
-                              <p className="text-xs text-muted-foreground font-sans">{a.client_phone}</p>
+                              <a
+                                href={`https://wa.me/${a.client_phone.replace(/\D/g, "")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-muted-foreground hover:text-primary font-sans underline-offset-2 hover:underline inline-block"
+                                title="Abrir conversa no WhatsApp"
+                              >
+                                {a.client_phone}
+                              </a>
                               <p className="text-xs text-primary font-sans mt-1">R$ {Number(a.service_price).toFixed(2)}</p>
                             </div>
                             <Badge variant="outline" className="border-primary/30 text-primary font-sans text-xs shrink-0">

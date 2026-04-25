@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { Menu, X, Instagram } from "lucide-react";
-import logo from "@/assets/logo.png";
 import { useBrand } from "@/hooks/useBrand";
 
 const Header = () => {
@@ -34,7 +33,9 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-border/50">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link to={base} className="flex items-center gap-2">
-          <img src={logo} alt="GB Logo" className="h-10 w-10" />
+          {tenant.logo_url ? (
+            <img src={tenant.logo_url} alt={`${tenant.name} logo`} className="h-10 w-10 object-contain" />
+          ) : null}
           <span className="font-serif text-lg text-gradient-gold tracking-wide">
             {tenant.name}
           </span>

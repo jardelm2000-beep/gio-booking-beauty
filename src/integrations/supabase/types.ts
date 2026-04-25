@@ -184,6 +184,7 @@ export type Database = {
           about_photo_url: string | null
           about_text: string | null
           active: boolean
+          background_color: string
           bio: string | null
           created_at: string
           gallery: string[]
@@ -202,6 +203,7 @@ export type Database = {
           about_photo_url?: string | null
           about_text?: string | null
           active?: boolean
+          background_color?: string
           bio?: string | null
           created_at?: string
           gallery?: string[]
@@ -220,6 +222,7 @@ export type Database = {
           about_photo_url?: string | null
           about_text?: string | null
           active?: boolean
+          background_color?: string
           bio?: string | null
           created_at?: string
           gallery?: string[]

@@ -13,6 +13,7 @@ type TenantRow = {
   slug: string;
   name: string;
   primary_color: string;
+  background_color: string;
   whatsapp_url: string | null;
   instagram_handle: string | null;
   hero_title: string | null;
@@ -41,7 +42,7 @@ const BrandEditor = ({ slug }: Props) => {
     setLoading(true);
     supabase
       .from("tenants")
-      .select("slug,name,primary_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery")
+      .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data: t, error }) => {
@@ -120,6 +121,7 @@ const BrandEditor = ({ slug }: Props) => {
     const payload = {
       name: data.name?.trim().slice(0, 100),
       primary_color: data.primary_color,
+      background_color: data.background_color,
       whatsapp_url: data.whatsapp_url?.trim() || null,
       instagram_handle: data.instagram_handle?.trim().replace(/^@/, "") || null,
       hero_title: data.hero_title?.trim().slice(0, 120) || null,
@@ -183,6 +185,23 @@ const BrandEditor = ({ slug }: Props) => {
                 onChange={(e) => set("primary_color", e.target.value)}
                 className="h-10 w-12 rounded border border-border bg-transparent cursor-pointer"
                 aria-label="Selecionar cor"
+              />
+            </div>
+          </Field>
+          <Field label="Cor de fundo (HEX)">
+            <div className="flex items-center gap-2">
+              <Input
+                value={data.background_color ?? "#0F0D0B"}
+                onChange={(e) => set("background_color", e.target.value)}
+                maxLength={7}
+                className="font-mono"
+              />
+              <input
+                type="color"
+                value={data.background_color ?? "#0F0D0B"}
+                onChange={(e) => set("background_color", e.target.value)}
+                className="h-10 w-12 rounded border border-border bg-transparent cursor-pointer"
+                aria-label="Selecionar cor de fundo"
               />
             </div>
           </Field>

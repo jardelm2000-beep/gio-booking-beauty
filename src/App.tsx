@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage.tsx";
 import AuthPage from "./pages/AuthPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import HubPage from "./pages/HubPage.tsx";
+import SuperAdminPage from "./pages/SuperAdminPage.tsx";
 import { BrandProvider, HUB_SLUG } from "./hooks/useBrand";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to={`/${HUB_SLUG}`} replace />} />
           <Route path={`/${HUB_SLUG}`} element={<HubPage />} />
+          <Route path={`/${HUB_SLUG}/admin`} element={<SuperAdminPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/:slug" element={<BrandProvider><Index /></BrandProvider>} />
           <Route path="/:slug/agendar" element={<BrandProvider><BookingPage /></BrandProvider>} />

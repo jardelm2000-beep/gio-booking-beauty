@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,7 @@ const SuperAdminPage = () => {
   const [deletingTenant, setDeletingTenant] = useState<TenantItem | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [ownerForTenant, setOwnerForTenant] = useState<TenantItem | null>(null);
 
   // Reset tab title and any tenant-injected CSS vars from previous navigation
   useEffect(() => {
@@ -247,6 +248,16 @@ const SuperAdminPage = () => {
                     >
                       Editar
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setOwnerForTenant(t)}
+                      className="font-sans text-xs"
+                      aria-label={`Adicionar dona em ${t.name}`}
+                      title="Adicionar dona do salão"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                    </Button>
                     <Button asChild size="sm" variant="ghost" className="font-sans text-xs">
                       <a href={`/${t.slug}`} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="w-3 h-3" />
@@ -312,6 +323,11 @@ const SuperAdminPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AddOwnerDialog
+        tenant={ownerForTenant}
+        onClose={() => setOwnerForTenant(null)}
+      />
     </div>
   );
 };

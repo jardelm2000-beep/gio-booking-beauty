@@ -197,7 +197,7 @@ const DashboardPage = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/", { replace: true });
+    navigate(`/${slug ?? ""}`, { replace: true });
   };
 
   const navItems = [

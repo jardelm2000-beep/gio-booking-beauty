@@ -184,7 +184,10 @@ export type Database = {
           about_photo_url: string | null
           about_text: string | null
           active: boolean
+          bio: string | null
           created_at: string
+          gallery: string[]
+          hero_image_url: string | null
           hero_subtitle: string | null
           hero_title: string | null
           instagram_handle: string | null
@@ -199,7 +202,10 @@ export type Database = {
           about_photo_url?: string | null
           about_text?: string | null
           active?: boolean
+          bio?: string | null
           created_at?: string
+          gallery?: string[]
+          hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
           instagram_handle?: string | null
@@ -214,7 +220,10 @@ export type Database = {
           about_photo_url?: string | null
           about_text?: string | null
           active?: boolean
+          bio?: string | null
           created_at?: string
+          gallery?: string[]
+          hero_image_url?: string | null
           hero_subtitle?: string | null
           hero_title?: string | null
           instagram_handle?: string | null

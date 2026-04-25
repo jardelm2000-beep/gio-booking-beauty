@@ -1,9 +1,17 @@
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { CalendarDays, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroBg from "@/assets/hero-bg.jpg";
+import { useBrand } from "@/hooks/useBrand";
 
 const HeroSection = () => {
+  const { slug } = useParams<{ slug: string }>();
+  const { tenant } = useBrand();
+  const title = tenant.hero_title ?? "Agende seu horário";
+  const subtitle = tenant.hero_subtitle ?? "Bem-vinda";
+  const titleParts = title.split(" ");
+  const titleHead = titleParts.slice(0, -1).join(" ");
+  const titleTail = titleParts.slice(-1)[0];
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div
@@ -17,20 +25,18 @@ const HeroSection = () => {
           <div className="flex items-center justify-center gap-2 text-primary">
             <Sparkles className="w-4 h-4" />
             <span className="text-xs font-sans uppercase tracking-[0.3em]">
-              Beleza & Sofisticação
+              {tenant.name}
             </span>
             <Sparkles className="w-4 h-4" />
           </div>
 
           <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl leading-tight">
-            Agende seu{" "}
-            <span className="text-gradient-gold italic">melhor</span>
-            <br />
-            horário
+            {titleHead}{" "}
+            <span className="text-gradient-gold italic">{titleTail}</span>
           </h1>
 
           <p className="text-foreground/60 font-sans text-sm sm:text-lg max-w-md mx-auto leading-relaxed px-2">
-            Bem-vinda, madame. Se sinta à vontade — você faz total diferença para nós!
+            {subtitle}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4 px-4">
@@ -39,11 +45,12 @@ const HeroSection = () => {
               size="lg"
               className="bg-gradient-gold hover:bg-gradient-gold-hover text-primary-foreground font-sans shadow-gold tracking-wide w-full sm:w-auto"
             >
-              <Link to="/agendar">
+              <Link to={`/${slug}/agendar`}>
                 <CalendarDays className="w-5 h-5 mr-2" />
                 Agendar Horário
               </Link>
             </Button>
+          {tenant.whatsapp_url && (
             <Button
               asChild
               variant="outline"
@@ -51,13 +58,14 @@ const HeroSection = () => {
               className="border-primary/30 text-primary hover:bg-primary/10 font-sans w-full sm:w-auto"
             >
               <a
-                href="https://wa.link/t0ghdg"
+                href={tenant.whatsapp_url}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Falar no WhatsApp
               </a>
             </Button>
+          )}
           </div>
         </div>
       </div>

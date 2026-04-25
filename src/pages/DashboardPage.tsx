@@ -5,7 +5,7 @@ import {
   CalendarDays, DollarSign, TrendingUp, TrendingDown, Plus, Trash2,
   LayoutDashboard, Calendar as CalIcon, Wallet, LogOut, CheckCircle2, Tag, Lock,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
+import { useBrand } from "@/hooks/useBrand";
 
 type AppointmentRow = {
   id: string;
@@ -45,6 +46,8 @@ const expenseCategories = ["Materiais", "Aluguel", "Marketing", "Equipamentos", 
 
 const DashboardPage = () => {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug: string }>();
+  const { tenant } = useBrand();
   const { user, isAdmin, loading, signOut } = useAuth();
   const [tab, setTab] = useState<"overview" | "agenda" | "finance">("overview");
   const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
@@ -59,19 +62,19 @@ const DashboardPage = () => {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      navigate("/auth?redirect=/admin", { replace: true });
+      navigate(`/auth?redirect=/${slug}/admin`, { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, slug]);
 
   // Carrega dados + realtime
   useEffect(() => {
-    if (!user || !isAdmin) return;
+    if (!user || !isAdmin || !slug) return;
     let active = true;
 
     const load = async () => {
       const [{ data: ap }, { data: ex }] = await Promise.all([
-        supabase.from("appointments").select("*").order("appointment_date", { ascending: true }),
-        supabase.from("expenses").select("*").order("expense_date", { ascending: false }),
+        supabase.from("appointments").select("*").eq("tenant_slug", slug).order("appointment_date", { ascending: true }),
+        supabase.from("expenses").select("*").eq("tenant_slug", slug).order("expense_date", { ascending: false }),
       ]);
       if (!active) return;
       setAppointments((ap as AppointmentRow[]) || []);
@@ -81,7 +84,7 @@ const DashboardPage = () => {
     load();
 
     const channel = supabase
-      .channel("admin-realtime")
+      .channel(`admin-realtime-${slug}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, load)
       .subscribe();
@@ -90,7 +93,7 @@ const DashboardPage = () => {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [user, isAdmin]);
+  }, [user, isAdmin, slug]);
 
   const togglePaid = async (a: AppointmentRow) => {
     const { error } = await supabase
@@ -102,6 +105,7 @@ const DashboardPage = () => {
   };
 
   const addExpense = async () => {
+    if (!slug) return;
     if (!newDesc.trim() || !newAmount) {
       toast.error("Preencha descrição e valor");
       return;
@@ -112,6 +116,7 @@ const DashboardPage = () => {
       return;
     }
     const { error } = await supabase.from("expenses").insert({
+      tenant_slug: slug,
       description: newDesc.trim().slice(0, 200),
       category: newCategory,
       amount,
@@ -192,7 +197,7 @@ const DashboardPage = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/", { replace: true });
+    navigate(`/${slug ?? ""}`, { replace: true });
   };
 
   const navItems = [
@@ -219,10 +224,10 @@ const DashboardPage = () => {
             <Lock className="w-12 h-12 text-primary mx-auto" />
             <h2 className="font-serif text-2xl">Acesso restrito</h2>
             <p className="text-muted-foreground font-sans text-sm">
-              Esta área é exclusiva para a Giovanna. Sua conta não tem permissão de administrador.
+              Esta área é exclusiva para o admin de {tenant.name}. Sua conta não tem permissão.
             </p>
             <div className="flex gap-2 justify-center">
-              <Button asChild variant="outline" className="font-sans"><Link to="/">Voltar</Link></Button>
+              <Button asChild variant="outline" className="font-sans"><Link to={`/${slug}`}>Voltar</Link></Button>
               <Button onClick={handleSignOut} className="bg-gradient-gold text-primary-foreground font-sans">Sair</Button>
             </div>
           </CardContent>
@@ -237,7 +242,7 @@ const DashboardPage = () => {
       <aside className="w-64 border-r border-border/50 p-6 hidden md:flex flex-col">
         <div className="flex items-center gap-2 mb-10">
           <img src={logo} alt="GB" className="h-8 w-8" />
-          <span className="font-serif text-sm text-gradient-gold">Painel Admin</span>
+          <span className="font-serif text-sm text-gradient-gold">{tenant.name}</span>
         </div>
         <nav className="space-y-2 flex-1">
           {navItems.map((item) => (

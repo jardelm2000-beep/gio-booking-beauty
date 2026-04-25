@@ -224,7 +224,7 @@ const DashboardPage = () => {
             <Lock className="w-12 h-12 text-primary mx-auto" />
             <h2 className="font-serif text-2xl">Acesso restrito</h2>
             <p className="text-muted-foreground font-sans text-sm">
-              Esta área é exclusiva para a Giovanna. Sua conta não tem permissão de administrador.
+              Esta área é exclusiva para o admin de {tenant.name}. Sua conta não tem permissão.
             </p>
             <div className="flex gap-2 justify-center">
               <Button asChild variant="outline" className="font-sans"><Link to={`/${slug}`}>Voltar</Link></Button>

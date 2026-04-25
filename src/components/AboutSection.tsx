@@ -32,6 +32,11 @@ const AboutSection = () => {
             <h2 className="font-serif text-3xl sm:text-4xl leading-snug">
               {head} <span className="text-gradient-gold italic">{tail}</span>
             </h2>
+            {tenant.bio && (
+              <p className="text-foreground/80 font-sans text-sm italic leading-relaxed border-l-2 border-primary/40 pl-4">
+                {tenant.bio}
+              </p>
+            )}
             <p className="text-muted-foreground font-sans leading-relaxed">
               {tenant.about_text}
             </p>

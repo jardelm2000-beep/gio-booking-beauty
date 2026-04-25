@@ -6,6 +6,7 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,13 +19,14 @@ export const useAuth = () => {
           const { data } = await supabase
             .from("user_roles")
             .select("role")
-            .eq("user_id", newSession.user.id)
-            .eq("role", "admin")
-            .maybeSingle();
-          setIsAdmin(!!data);
+            .eq("user_id", newSession.user.id);
+          const roles = (data ?? []).map((r) => r.role);
+          setIsSuperAdmin(roles.includes("super_admin"));
+          setIsAdmin(roles.includes("admin") || roles.includes("super_admin"));
         }, 0);
       } else {
         setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
     });
 
@@ -36,9 +38,11 @@ export const useAuth = () => {
           .from("user_roles")
           .select("role")
           .eq("user_id", s.user.id)
-          .eq("role", "admin")
-          .maybeSingle()
-          .then(({ data }) => setIsAdmin(!!data));
+          .then(({ data }) => {
+            const roles = (data ?? []).map((r) => r.role);
+            setIsSuperAdmin(roles.includes("super_admin"));
+            setIsAdmin(roles.includes("admin") || roles.includes("super_admin"));
+          });
       }
       setLoading(false);
     });
@@ -50,5 +54,5 @@ export const useAuth = () => {
     await supabase.auth.signOut();
   };
 
-  return { user, session, isAdmin, loading, signOut };
+  return { user, session, isAdmin, isSuperAdmin, loading, signOut };
 };

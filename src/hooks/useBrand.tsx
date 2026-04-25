@@ -15,6 +15,9 @@ export type Tenant = {
   about_text: string | null;
   about_photo_url: string | null;
   logo_url: string | null;
+  bio: string | null;
+  hero_image_url: string | null;
+  gallery: string[];
 };
 
 export type BrandService = {
@@ -57,7 +60,7 @@ export const BrandProvider = ({ children }: { children: ReactNode }) => {
     (async () => {
       const { data: t } = await supabase
         .from("tenants")
-        .select("slug,name,primary_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,about_photo_url,logo_url")
+        .select("slug,name,primary_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,about_photo_url,logo_url,bio,hero_image_url,gallery")
         .eq("slug", slug)
         .eq("active", true)
         .maybeSingle();

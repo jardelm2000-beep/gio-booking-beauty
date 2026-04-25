@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Upload, Trash2, Save, ImageIcon, Plus } from "lucide-react";
+import { Loader2, Upload, Trash2, Save, ImageIcon, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
 
@@ -26,6 +27,17 @@ type TenantRow = {
   gallery: string[];
 };
 
+type ServiceRow = {
+  id: string;
+  name: string;
+  price: number;
+  duration: string | null;
+  active: boolean;
+  tenant_slug: string;
+  _isNew?: boolean;
+  _dirty?: boolean;
+};
+
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
@@ -36,6 +48,9 @@ const BrandEditor = ({ slug }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [services, setServices] = useState<ServiceRow[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [savingServiceId, setSavingServiceId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +65,23 @@ const BrandEditor = ({ slug }: Props) => {
         if (error) toast.error(safeErrorMessage(error, "Não foi possível carregar a marca."));
         if (t) setData(t as TenantRow);
         setLoading(false);
+      });
+    return () => { active = false; };
+  }, [slug]);
+
+  useEffect(() => {
+    let active = true;
+    setServicesLoading(true);
+    supabase
+      .from("services")
+      .select("id,name,price,duration,active,tenant_slug")
+      .eq("tenant_slug", slug)
+      .order("created_at", { ascending: true })
+      .then(({ data: s, error }) => {
+        if (!active) return;
+        if (error) toast.error(safeErrorMessage(error, "Não foi possível carregar serviços."));
+        setServices((s ?? []) as ServiceRow[]);
+        setServicesLoading(false);
       });
     return () => { active = false; };
   }, [slug]);
@@ -148,6 +180,87 @@ const BrandEditor = ({ slug }: Props) => {
   if (!data) {
     return <p className="text-muted-foreground font-sans text-sm">Marca não encontrada.</p>;
   }
+
+  const updateService = (id: string, patch: Partial<ServiceRow>) => {
+    setServices((list) => list.map((s) => (s.id === id ? { ...s, ...patch, _dirty: true } : s)));
+  };
+
+  const addService = () => {
+    const tempId = `new-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setServices((list) => [
+      ...list,
+      {
+        id: tempId,
+        name: "",
+        price: 0,
+        duration: "",
+        active: true,
+        tenant_slug: slug,
+        _isNew: true,
+        _dirty: true,
+      },
+    ]);
+  };
+
+  const slugify = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "servico";
+
+  const saveService = async (svc: ServiceRow) => {
+    const name = svc.name?.trim();
+    if (!name) { toast.error("Informe o nome do serviço."); return; }
+    const price = Number(svc.price);
+    if (!Number.isFinite(price) || price < 0) { toast.error("Preço inválido."); return; }
+    setSavingServiceId(svc.id);
+    if (svc._isNew) {
+      const newId = `${slugify(name)}-${Date.now().toString(36)}`;
+      const { data: inserted, error } = await supabase
+        .from("services")
+        .insert({
+          id: newId,
+          name: name.slice(0, 100),
+          price,
+          duration: svc.duration?.trim().slice(0, 50) || null,
+          active: svc.active,
+          tenant_slug: slug,
+        })
+        .select("id,name,price,duration,active,tenant_slug")
+        .single();
+      setSavingServiceId(null);
+      if (error) { toast.error(safeErrorMessage(error, "Falha ao criar serviço.")); return; }
+      setServices((list) => list.map((s) => (s.id === svc.id ? (inserted as ServiceRow) : s)));
+      toast.success("Serviço criado!");
+    } else {
+      const { error } = await supabase
+        .from("services")
+        .update({
+          name: name.slice(0, 100),
+          price,
+          duration: svc.duration?.trim().slice(0, 50) || null,
+          active: svc.active,
+        })
+        .eq("id", svc.id)
+        .eq("tenant_slug", slug);
+      setSavingServiceId(null);
+      if (error) { toast.error(safeErrorMessage(error, "Falha ao salvar serviço.")); return; }
+      setServices((list) => list.map((s) => (s.id === svc.id ? { ...s, _dirty: false } : s)));
+      toast.success("Serviço atualizado!");
+    }
+  };
+
+  const deleteService = async (svc: ServiceRow) => {
+    if (svc._isNew) {
+      setServices((list) => list.filter((s) => s.id !== svc.id));
+      return;
+    }
+    if (!confirm(`Remover o serviço "${svc.name}"?`)) return;
+    setSavingServiceId(svc.id);
+    const { error } = await supabase.from("services").delete().eq("id", svc.id).eq("tenant_slug", slug);
+    setSavingServiceId(null);
+    if (error) { toast.error(safeErrorMessage(error, "Falha ao remover. Pode haver agendamentos vinculados.")); return; }
+    setServices((list) => list.filter((s) => s.id !== svc.id));
+    toast.success("Serviço removido.");
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -318,6 +431,100 @@ const BrandEditor = ({ slug }: Props) => {
             </div>
           ) : (
             <p className="text-xs text-muted-foreground font-sans">Nenhuma imagem ainda.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="font-serif text-lg flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> Serviços
+            </CardTitle>
+            <Button type="button" size="sm" variant="outline" onClick={addService} className="font-sans">
+              <Plus className="w-4 h-4 mr-1" /> Novo serviço
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {servicesLoading ? (
+            <p className="text-xs text-muted-foreground font-sans">Carregando serviços...</p>
+          ) : services.length === 0 ? (
+            <p className="text-xs text-muted-foreground font-sans">
+              Nenhum serviço cadastrado. Clique em "Novo serviço" para começar.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {services.map((svc) => (
+                <div
+                  key={svc.id}
+                  className="rounded-lg border border-border/50 p-4 space-y-3 bg-secondary/30"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr,1fr] gap-3">
+                    <Field label="Nome">
+                      <Input
+                        value={svc.name}
+                        onChange={(e) => updateService(svc.id, { name: e.target.value })}
+                        maxLength={100}
+                        placeholder="Ex: Alongamento de cílios"
+                      />
+                    </Field>
+                    <Field label="Preço (R$)">
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={svc.price}
+                        onChange={(e) => updateService(svc.id, { price: Number(e.target.value) })}
+                      />
+                    </Field>
+                    <Field label="Duração">
+                      <Input
+                        value={svc.duration ?? ""}
+                        onChange={(e) => updateService(svc.id, { duration: e.target.value })}
+                        placeholder="Ex: 2h"
+                        maxLength={50}
+                      />
+                    </Field>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <label className="flex items-center gap-2 text-xs font-sans text-muted-foreground">
+                      <Switch
+                        checked={svc.active}
+                        onCheckedChange={(v) => updateService(svc.id, { active: v })}
+                      />
+                      {svc.active ? "Ativo (visível na página)" : "Inativo (oculto)"}
+                    </label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => deleteService(svc)}
+                        disabled={savingServiceId === svc.id}
+                        className="font-sans text-xs text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" /> Remover
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => saveService(svc)}
+                        disabled={savingServiceId === svc.id || (!svc._dirty && !svc._isNew)}
+                        className="bg-gradient-gold text-primary-foreground font-sans text-xs"
+                      >
+                        {savingServiceId === svc.id ? (
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="w-3 h-3 mr-1" />
+                        )}
+                        {svc._isNew ? "Criar" : "Salvar"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

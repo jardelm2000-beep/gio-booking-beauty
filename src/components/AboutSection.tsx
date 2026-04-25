@@ -1,7 +1,13 @@
 import { Instagram, Award, Heart } from "lucide-react";
 import aboutPhoto from "@/assets/about-photo.jpg";
+import { useBrand } from "@/hooks/useBrand";
 
 const AboutSection = () => {
+  const { tenant } = useBrand();
+  const photo = tenant.about_photo_url || aboutPhoto;
+  const nameParts = tenant.name.split(" ");
+  const head = nameParts.slice(0, -1).join(" ");
+  const tail = nameParts.slice(-1)[0];
   return (
     <section id="sobre" className="py-20 sm:py-28 bg-card/50">
       <div className="container mx-auto px-4">
@@ -9,34 +15,25 @@ const AboutSection = () => {
           <div className="relative">
             <div className="aspect-[3/4] rounded-2xl overflow-hidden border border-border/50">
               <img
-                src={aboutPhoto}
-                alt="Giovanna Belizário"
+                src={photo}
+                alt={tenant.name}
                 className="w-full h-full object-cover"
                 loading="lazy"
                 width={800}
                 height={1024}
               />
             </div>
-            <div className="absolute -bottom-4 -right-4 w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold">
-              <span className="font-serif text-primary-foreground text-base sm:text-xl">GB</span>
-            </div>
           </div>
 
           <div className="space-y-6">
             <span className="text-xs font-sans uppercase tracking-[0.3em] text-primary">
-              Sobre Mim
+              Sobre
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl leading-snug">
-              Giovanna <span className="text-gradient-gold italic">Belizário</span>
+              {head} <span className="text-gradient-gold italic">{tail}</span>
             </h2>
             <p className="text-muted-foreground font-sans leading-relaxed">
-              Apaixonada pela arte de realçar a beleza natural de cada mulher. 
-              Com técnicas refinadas e produtos de alta qualidade, meu objetivo é 
-              fazer você se sentir confiante e deslumbrante.
-            </p>
-            <p className="text-muted-foreground font-sans leading-relaxed">
-              Cada atendimento é personalizado, porque acredito que cada madame 
-              merece um tratamento exclusivo e especial.
+              {tenant.about_text}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-2">
@@ -50,15 +47,17 @@ const AboutSection = () => {
               </div>
             </div>
 
-            <a
-              href="https://www.instagram.com/bygiovannabelizario"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-primary hover:text-gold-light transition-colors font-sans text-sm"
-            >
-              <Instagram className="w-4 h-4" />
-              @bygiovannabelizario
-            </a>
+            {tenant.instagram_handle && (
+              <a
+                href={`https://www.instagram.com/${tenant.instagram_handle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-primary hover:text-gold-light transition-colors font-sans text-sm"
+              >
+                <Instagram className="w-4 h-4" />
+                @{tenant.instagram_handle}
+              </a>
+            )}
           </div>
         </div>
       </div>

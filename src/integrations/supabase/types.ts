@@ -274,6 +274,10 @@ export type Database = {
     }
     Functions: {
       admin_tenant_slug: { Args: { _user_id: string }; Returns: string }
+      can_view_profile: {
+        Args: { _caller: string; _profile_user: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

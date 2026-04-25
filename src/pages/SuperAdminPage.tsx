@@ -245,6 +245,34 @@ const SuperAdminPage = () => {
       </header>
 
       <main className="pt-24 pb-12 container mx-auto max-w-5xl px-4">
+        {/* Top tabs */}
+        <div className="flex gap-2 mb-6 border-b border-border/50">
+          <button
+            onClick={() => { setView("tenants"); setShowTrash(false); }}
+            className={`px-4 py-2 text-sm font-sans border-b-2 transition-colors ${
+              view === "tenants"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="w-4 h-4 mr-2 inline" /> Marcas
+          </button>
+          <button
+            onClick={() => setView("owners")}
+            className={`px-4 py-2 text-sm font-sans border-b-2 transition-colors ${
+              view === "owners"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="w-4 h-4 mr-2 inline" /> Donas
+          </button>
+        </div>
+
+        {view === "owners" ? (
+          <OwnersPanel tenants={tenants} />
+        ) : (
+          <>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-8">
           <div>
             <h1 className="font-serif text-2xl sm:text-3xl">

@@ -29,7 +29,7 @@ export type Database = {
           status: Database["public"]["Enums"]["appointment_status"]
           tenant_slug: string
           updated_at: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           appointment_date: string
@@ -45,7 +45,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["appointment_status"]
           tenant_slug: string
           updated_at?: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           appointment_date?: string
@@ -61,7 +61,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["appointment_status"]
           tenant_slug?: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -274,6 +274,10 @@ export type Database = {
     }
     Functions: {
       admin_tenant_slug: { Args: { _user_id: string }; Returns: string }
+      can_view_profile: {
+        Args: { _caller: string; _profile_user: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

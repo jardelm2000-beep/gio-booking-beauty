@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2, UserPlus, RotateCcw, Archive } from "lucide-react";
+import { Sparkles, LogOut, Plus, ExternalLink, ArrowLeft, Loader2, Trash2, UserPlus, RotateCcw, Archive, Users, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,7 @@ const SuperAdminPage = () => {
   const [purgingTenant, setPurgingTenant] = useState<TenantItem | null>(null);
   const [purgeConfirmText, setPurgeConfirmText] = useState("");
   const [purging, setPurging] = useState(false);
+  const [view, setView] = useState<"tenants" | "owners">("tenants");
 
   // Reset tab title and any tenant-injected CSS vars from previous navigation
   useEffect(() => {
@@ -244,6 +245,34 @@ const SuperAdminPage = () => {
       </header>
 
       <main className="pt-24 pb-12 container mx-auto max-w-5xl px-4">
+        {/* Top tabs */}
+        <div className="flex gap-2 mb-6 border-b border-border/50">
+          <button
+            onClick={() => { setView("tenants"); setShowTrash(false); }}
+            className={`px-4 py-2 text-sm font-sans border-b-2 transition-colors ${
+              view === "tenants"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="w-4 h-4 mr-2 inline" /> Marcas
+          </button>
+          <button
+            onClick={() => setView("owners")}
+            className={`px-4 py-2 text-sm font-sans border-b-2 transition-colors ${
+              view === "owners"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="w-4 h-4 mr-2 inline" /> Donas
+          </button>
+        </div>
+
+        {view === "owners" ? (
+          <OwnersPanel tenants={tenants} />
+        ) : (
+          <>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-8">
           <div>
             <h1 className="font-serif text-2xl sm:text-3xl">
@@ -394,6 +423,8 @@ const SuperAdminPage = () => {
               </Card>
             ))}
           </div>
+        )}
+        </>
         )}
       </main>
 
@@ -807,5 +838,228 @@ const AddOwnerDialog = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+// ===== Owners Panel =====
+type OwnerRow = {
+  user_id: string;
+  tenant_slug: string;
+  email: string | null;
+  display_name: string | null;
+  cpf: string | null;
+  created_at: string;
+};
+
+const formatCpfDisplay = (raw: string | null) => {
+  if (!raw) return "—";
+  const d = raw.replace(/\D/g, "");
+  if (d.length !== 11) return raw;
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+};
+
+const OwnersPanel = ({ tenants }: { tenants: TenantItem[] }) => {
+  const [owners, setOwners] = useState<OwnerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState<OwnerRow | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [savingReset, setSavingReset] = useState(false);
+
+  const tenantName = (slug: string) =>
+    tenants.find((t) => t.slug === slug)?.name ?? slug;
+
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.functions.invoke("create-salon-owner", {
+      body: { action: "list" },
+    });
+    setLoading(false);
+    const errMsg = (data as { error?: string } | null)?.error ?? error?.message;
+    if (errMsg) {
+      toast.error(errMsg);
+      return;
+    }
+    setOwners(((data as { owners?: OwnerRow[] })?.owners ?? []).sort((a, b) =>
+      (a.display_name ?? a.email ?? "").localeCompare(b.display_name ?? b.email ?? "")
+    ));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    let p = "";
+    for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
+    setNewPassword(p);
+    setShowPwd(true);
+  };
+
+  const submitReset = async () => {
+    if (!resetting) return;
+    if (newPassword.length < 6) return toast.error("Senha precisa de no mínimo 6 caracteres.");
+    setSavingReset(true);
+    const { data, error } = await supabase.functions.invoke("create-salon-owner", {
+      body: { action: "reset_password", user_id: resetting.user_id, password: newPassword },
+    });
+    setSavingReset(false);
+    const errMsg = (data as { error?: string } | null)?.error ?? error?.message;
+    if (errMsg) return toast.error(errMsg);
+    toast.success(`Senha redefinida para ${resetting.email}`);
+    // keep dialog open so user can copy if needed
+  };
+
+  const copyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copiado`);
+    } catch {
+      toast.error("Falha ao copiar");
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-6">
+        <div>
+          <h1 className="font-serif text-2xl sm:text-3xl">Donas de salão</h1>
+          <p className="text-xs text-muted-foreground font-sans mt-1">
+            Consulte e-mail/CPF das donas e redefina senhas quando elas pedirem.
+            <span className="block mt-1 italic">
+              Por segurança, senhas <strong>não podem ser visualizadas</strong> — apenas redefinidas.
+            </span>
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="font-sans">
+          {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+          Recarregar
+        </Button>
+      </div>
+
+      {loading ? (
+        <p className="text-muted-foreground font-sans text-sm">Carregando donas...</p>
+      ) : owners.length === 0 ? (
+        <p className="text-muted-foreground font-sans text-sm">
+          Nenhuma dona cadastrada ainda. Cadastre pela aba Marcas.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {owners.map((o) => (
+            <Card key={o.user_id + o.tenant_slug} className="border-border/50">
+              <CardContent className="p-4 flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-serif text-base">{o.display_name ?? "(sem nome)"}</p>
+                    <span className="text-[10px] uppercase tracking-wider text-primary border border-primary/30 rounded px-1.5 py-0.5 font-sans">
+                      /{o.tenant_slug}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-sans">
+                      {tenantName(o.tenant_slug)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-sans text-muted-foreground">
+                    <span className="text-foreground/80">E-mail:</span>
+                    <span className="font-mono">{o.email ?? "—"}</span>
+                    {o.email && (
+                      <button
+                        onClick={() => copyText(o.email!, "E-mail")}
+                        className="text-muted-foreground hover:text-primary"
+                        aria-label="Copiar e-mail"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-sans text-muted-foreground">
+                    <span className="text-foreground/80">CPF:</span>
+                    <span className="font-mono">{formatCpfDisplay(o.cpf)}</span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setResetting(o); setNewPassword(""); setShowPwd(false); }}
+                  className="font-sans text-xs"
+                >
+                  <KeyRound className="w-3 h-3 mr-1.5" /> Redefinir senha
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog
+        open={!!resetting}
+        onOpenChange={(o) => { if (!o) { setResetting(null); setNewPassword(""); setShowPwd(false); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif">
+              Redefinir senha de {resetting?.display_name ?? resetting?.email}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-xs text-muted-foreground font-sans">
+              Defina uma nova senha temporária. <strong>Anote ou copie</strong> antes de fechar — você não conseguirá vê-la depois.
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-sans uppercase tracking-wide text-muted-foreground">Nova senha</Label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type={showPwd ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    autoComplete="off"
+                    className="font-mono pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <Button type="button" variant="outline" onClick={generatePassword} className="font-sans text-xs">
+                  Gerar
+                </Button>
+                {newPassword && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => copyText(newPassword, "Senha")}
+                    className="font-sans text-xs"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => { setResetting(null); setNewPassword(""); setShowPwd(false); }}
+              className="font-sans"
+              disabled={savingReset}
+            >
+              Fechar
+            </Button>
+            <Button
+              onClick={submitReset}
+              disabled={savingReset || newPassword.length < 6}
+              className="bg-gradient-gold text-primary-foreground font-sans"
+            >
+              {savingReset ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <KeyRound className="w-4 h-4 mr-2" />}
+              Confirmar nova senha
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

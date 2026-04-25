@@ -53,6 +53,68 @@ Deno.serve(async (req) => {
     if (roleErr || !isSuper) return json({ error: "Forbidden" }, 403);
 
     const body = await req.json().catch(() => ({}));
+    const action = String(body.action ?? "create");
+
+    // ===== LIST owners =====
+    if (action === "list") {
+      const { data: roles, error: rErr } = await admin
+        .from("user_roles")
+        .select("user_id, tenant_slug, created_at")
+        .eq("role", "admin");
+      if (rErr) return json({ error: rErr.message }, 500);
+
+      const userIds = [...new Set((roles ?? []).map((r) => r.user_id))];
+      if (userIds.length === 0) return json({ owners: [] });
+
+      const { data: profiles, error: pErr } = await admin
+        .from("profiles")
+        .select("user_id, display_name, cpf")
+        .in("user_id", userIds);
+      if (pErr) return json({ error: pErr.message }, 500);
+
+      // Fetch emails via auth admin (one by one — usually small list)
+      const emailMap = new Map<string, string>();
+      for (const uid of userIds) {
+        const { data: u } = await admin.auth.admin.getUserById(uid);
+        if (u?.user?.email) emailMap.set(uid, u.user.email);
+      }
+
+      const owners = (roles ?? []).map((r) => {
+        const p = profiles?.find((x) => x.user_id === r.user_id);
+        return {
+          user_id: r.user_id,
+          tenant_slug: r.tenant_slug,
+          email: emailMap.get(r.user_id) ?? null,
+          display_name: p?.display_name ?? null,
+          cpf: p?.cpf ?? null,
+          created_at: r.created_at,
+        };
+      });
+      return json({ owners });
+    }
+
+    // ===== RESET password =====
+    if (action === "reset_password") {
+      const targetUserId = String(body.user_id ?? "");
+      const newPassword = String(body.password ?? "");
+      if (!targetUserId) return json({ error: "user_id obrigatório" }, 400);
+      if (newPassword.length < 6 || newPassword.length > 72)
+        return json({ error: "Senha deve ter entre 6 e 72 caracteres" }, 400);
+
+      // Confirm target is an admin (any tenant) — never reset super_admin or random users via this endpoint
+      const { data: targetRoles } = await admin
+        .from("user_roles").select("role").eq("user_id", targetUserId);
+      const isAdminTarget = (targetRoles ?? []).some((r) => r.role === "admin");
+      if (!isAdminTarget) return json({ error: "Usuário não é uma dona de salão" }, 403);
+
+      const { error: upErr } = await admin.auth.admin.updateUserById(targetUserId, {
+        password: newPassword,
+      });
+      if (upErr) return json({ error: upErr.message }, 500);
+      return json({ ok: true });
+    }
+
+    // ===== CREATE (default) =====
     const email = String(body.email ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
     const cpf = String(body.cpf ?? "").replace(/\D/g, "");

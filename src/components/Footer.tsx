@@ -1,5 +1,4 @@
 import { Instagram, Heart } from "lucide-react";
-import logo from "@/assets/logo.png";
 import { useBrand } from "@/hooks/useBrand";
 
 const Footer = () => {
@@ -7,7 +6,9 @@ const Footer = () => {
   return (
   <footer className="py-12 border-t border-border/50">
     <div className="container mx-auto px-4 text-center space-y-4">
-      <img src={logo} alt="GB" className="h-8 w-8 mx-auto opacity-60" loading="lazy" />
+      {tenant.logo_url ? (
+        <img src={tenant.logo_url} alt={tenant.name} className="h-8 w-8 mx-auto opacity-60 object-contain" loading="lazy" />
+      ) : null}
       <p className="text-muted-foreground text-xs font-sans">
         {tenant.name} © {new Date().getFullYear()}
       </p>

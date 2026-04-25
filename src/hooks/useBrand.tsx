@@ -8,6 +8,7 @@ export type Tenant = {
   slug: string;
   name: string;
   primary_color: string;
+  background_color: string;
   whatsapp_url: string | null;
   instagram_handle: string | null;
   hero_title: string | null;
@@ -60,7 +61,7 @@ export const BrandProvider = ({ children }: { children: ReactNode }) => {
     (async () => {
       const { data: t } = await supabase
         .from("tenants")
-        .select("slug,name,primary_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,about_photo_url,logo_url,bio,hero_image_url,gallery")
+        .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,about_photo_url,logo_url,bio,hero_image_url,gallery")
         .eq("slug", slug)
         .eq("active", true)
         .maybeSingle();
@@ -99,11 +100,16 @@ export const BrandProvider = ({ children }: { children: ReactNode }) => {
       document.documentElement.style.setProperty("--gold", hsl);
       document.documentElement.style.setProperty("--ring", hsl);
     }
+    const bgHsl = hexToHsl(tenant.background_color);
+    if (bgHsl) {
+      document.documentElement.style.setProperty("--background", bgHsl);
+    }
     document.title = tenant.name;
     return () => {
       document.documentElement.style.removeProperty("--primary");
       document.documentElement.style.removeProperty("--gold");
       document.documentElement.style.removeProperty("--ring");
+      document.documentElement.style.removeProperty("--background");
     };
   }, [tenant]);
 

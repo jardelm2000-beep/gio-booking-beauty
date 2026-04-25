@@ -1,24 +1,28 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { Menu, X, Instagram } from "lucide-react";
 import logo from "@/assets/logo.png";
-
-const navItems = [
-  { label: "Início", href: "/" },
-  { label: "Serviços", href: "/#servicos" },
-  { label: "Sobre Mim", href: "/#sobre" },
-  { label: "Agendar", href: "/agendar" },
-];
+import { useBrand } from "@/hooks/useBrand";
 
 const Header = () => {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+  const { slug } = useParams<{ slug: string }>();
+  const { tenant } = useBrand();
+
+  const base = `/${slug}`;
+  const navItems = [
+    { label: "Início", href: `${base}` },
+    { label: "Serviços", href: `${base}#servicos` },
+    { label: "Sobre", href: `${base}#sobre` },
+    { label: "Agendar", href: `${base}/agendar` },
+  ];
 
   const handleNav = (href: string) => {
     setOpen(false);
-    if (href.startsWith("/#")) {
-      const id = href.replace("/#", "");
-      if (location.pathname === "/") {
+    if (href.includes("#")) {
+      const id = href.split("#")[1];
+      if (location.pathname === base) {
         document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
       } else {
         window.location.href = href;
@@ -29,10 +33,10 @@ const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-dark border-b border-border/50">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to={base} className="flex items-center gap-2">
           <img src={logo} alt="GB Logo" className="h-10 w-10" />
           <span className="font-serif text-lg text-gradient-gold tracking-wide">
-            Giovanna Belizário
+            {tenant.name}
           </span>
         </Link>
 
@@ -40,21 +44,23 @@ const Header = () => {
           {navItems.map((item) => (
             <Link
               key={item.label}
-              to={item.href.startsWith("/#") ? "/" : item.href}
+              to={item.href.includes("#") ? base : item.href}
               onClick={() => handleNav(item.href)}
               className="text-sm font-sans text-foreground/70 hover:text-primary transition-colors tracking-wide uppercase"
             >
               {item.label}
             </Link>
           ))}
-          <a
-            href="https://www.instagram.com/bygiovannabelizario"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-foreground/70 hover:text-primary transition-colors"
-          >
-            <Instagram className="w-5 h-5" />
-          </a>
+          {tenant.instagram_handle && (
+            <a
+              href={`https://www.instagram.com/${tenant.instagram_handle}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground/70 hover:text-primary transition-colors"
+            >
+              <Instagram className="w-5 h-5" />
+            </a>
+          )}
         </nav>
 
         <button
@@ -71,7 +77,7 @@ const Header = () => {
             {navItems.map((item) => (
               <Link
                 key={item.label}
-                to={item.href.startsWith("/#") ? "/" : item.href}
+                to={item.href.includes("#") ? base : item.href}
                 onClick={() => handleNav(item.href)}
                 className="text-sm font-sans text-foreground/70 hover:text-primary transition-colors tracking-wide uppercase py-2"
               >

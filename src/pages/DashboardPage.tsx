@@ -54,7 +54,7 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const { tenant } = useBrand();
-  const { user, isAdmin, isSuperAdmin, isAdminOf, loading, signOut } = useAuth();
+  const { user, isSuperAdmin, isAdminOf, loading, signOut } = useAuth();
   const hasTenantAccess = isAdminOf(slug);
   const [tab, setTab] = useState<"overview" | "agenda" | "finance" | "page">("overview");
   const [appointments, setAppointments] = useState<AppointmentRow[]>([]);

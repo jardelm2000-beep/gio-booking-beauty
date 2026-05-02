@@ -24,7 +24,7 @@ const signinSchema = z.object({
 const AuthPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const redirect = params.get("redirect") || "/agendar";
+  const redirectParam = params.get("redirect");
   const { user, loading } = useAuth();
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -35,8 +35,31 @@ const AuthPage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate(redirect, { replace: true });
-  }, [user, loading, navigate, redirect]);
+    if (loading || !user) return;
+    // Se o login veio com ?redirect=/algo, respeita.
+    if (redirectParam) {
+      navigate(redirectParam, { replace: true });
+      return;
+    }
+    // Senão, descobre o destino certo com base no papel do usuário.
+    (async () => {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role, tenant_slug")
+        .eq("user_id", user.id);
+      const list = roles ?? [];
+      if (list.some((r) => r.role === "super_admin")) {
+        navigate("/giovanna/admin", { replace: true });
+        return;
+      }
+      const adminRow = list.find((r) => r.role === "admin" && r.tenant_slug);
+      if (adminRow?.tenant_slug) {
+        navigate(`/${adminRow.tenant_slug}/admin`, { replace: true });
+        return;
+      }
+      navigate("/giovanna", { replace: true });
+    })();
+  }, [user, loading, navigate, redirectParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

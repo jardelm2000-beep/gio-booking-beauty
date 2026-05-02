@@ -110,7 +110,17 @@ Deno.serve(async (req) => {
       const { error: upErr } = await admin.auth.admin.updateUserById(targetUserId, {
         password: newPassword,
       });
-      if (upErr) return json({ error: upErr.message }, 500);
+      if (upErr) {
+        const msg = upErr.message ?? "";
+        let friendly = msg;
+        if (/pwned|leaked|compromised|HIBP/i.test(msg)) {
+          friendly = "Esta senha já vazou em outros sites. Use outra (clique em Gerar).";
+        } else if (/weak|short|character|uppercase|lowercase|digit|symbol/i.test(msg)) {
+          friendly = "Senha fraca. Use ao menos 8 caracteres com maiúscula, minúscula, número e símbolo.";
+        }
+        // Return 200 so the client receives the body with the error message
+        return json({ error: friendly });
+      }
       return json({ ok: true });
     }
 

@@ -260,8 +260,8 @@ const DashboardPage = () => {
     );
   }
 
-  // Sem permissão
-  if (user && !isAdmin) {
+  // Sem permissão (sem qualquer admin OU admin de outra marca)
+  if (user && !hasTenantAccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <Card className="border-border/50 max-w-md w-full">

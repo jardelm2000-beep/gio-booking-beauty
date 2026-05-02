@@ -888,10 +888,22 @@ const OwnersPanel = ({ tenants }: { tenants: TenantItem[] }) => {
   useEffect(() => { load(); }, []);
 
   const generatePassword = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-    let p = "";
-    for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
-    setNewPassword(p);
+    // Garante: maiúscula, minúscula, dígito e símbolo (atende complexidade do GoTrue)
+    // Comprimento alto + aleatoriedade reduz chance de aparecer em vazamento (HIBP).
+    const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const lower = "abcdefghjkmnpqrstuvwxyz";
+    const digit = "23456789";
+    const symbol = "!@#$%&*?";
+    const all = upper + lower + digit + symbol;
+    const rand = (s: string) => s[Math.floor(Math.random() * s.length)];
+    const chars = [rand(upper), rand(lower), rand(digit), rand(symbol)];
+    for (let i = 0; i < 10; i++) chars.push(rand(all));
+    // Embaralha
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    setNewPassword(chars.join(""));
     setShowPwd(true);
   };
 

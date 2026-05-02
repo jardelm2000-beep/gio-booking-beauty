@@ -54,7 +54,8 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const { tenant } = useBrand();
-  const { user, isAdmin, isSuperAdmin, loading, signOut } = useAuth();
+  const { user, isAdmin, isSuperAdmin, isAdminOf, loading, signOut } = useAuth();
+  const hasTenantAccess = isAdminOf(slug);
   const [tab, setTab] = useState<"overview" | "agenda" | "finance" | "page">("overview");
   const [appointments, setAppointments] = useState<AppointmentRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
@@ -74,7 +75,7 @@ const DashboardPage = () => {
 
   // Carrega dados + realtime
   useEffect(() => {
-    if (!user || !isAdmin || !slug) return;
+    if (!user || !hasTenantAccess || !slug) return;
     let active = true;
 
     const load = async () => {

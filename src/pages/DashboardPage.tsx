@@ -100,7 +100,7 @@ const DashboardPage = () => {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [user, isAdmin, slug]);
+  }, [user, hasTenantAccess, slug]);
 
   const togglePaid = async (a: AppointmentRow) => {
     // Atualização otimista: UI responde imediatamente

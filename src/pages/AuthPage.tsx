@@ -80,11 +80,18 @@ const AuthPage = () => {
           },
         });
         if (error) {
-          toast.error(
-            error.message.includes("registered")
-              ? "E-mail já cadastrado"
-              : safeErrorMessage(error, "Não foi possível criar a conta."),
-          );
+          const msg = error.message ?? "";
+          let friendly = safeErrorMessage(error, "Não foi possível criar a conta.");
+          if (/registered|already/i.test(msg)) {
+            friendly = "E-mail já cadastrado. Tente entrar.";
+          } else if (/pwned|leaked|compromised|HIBP/i.test(msg)) {
+            friendly = "Esta senha já vazou em outros sites. Escolha uma senha diferente.";
+          } else if (/weak|short|character|uppercase|lowercase|digit|symbol|password/i.test(msg)) {
+            friendly = "Senha fraca. Use ao menos 8 caracteres com maiúscula, minúscula, número e símbolo.";
+          } else if (/email/i.test(msg)) {
+            friendly = "E-mail inválido ou não permitido.";
+          }
+          toast.error(friendly);
           return;
         }
         toast.success("Conta criada! 💖");

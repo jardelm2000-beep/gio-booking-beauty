@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Upload, Trash2, Save, ImageIcon, Plus, Sparkles } from "lucide-react";
+import { Loader2, Upload, Trash2, Save, ImageIcon, Plus, Sparkles, Award, Heart, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
 
@@ -25,6 +26,10 @@ type TenantRow = {
   hero_image_url: string | null;
   about_photo_url: string | null;
   gallery: string[];
+  badge1_icon: string;
+  badge1_label: string;
+  badge2_icon: string;
+  badge2_label: string;
 };
 
 type ServiceRow = {
@@ -57,7 +62,7 @@ const BrandEditor = ({ slug }: Props) => {
     setLoading(true);
     supabase
       .from("tenants")
-      .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery")
+      .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery,badge1_icon,badge1_label,badge2_icon,badge2_label")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data: t, error }) => {
@@ -164,6 +169,10 @@ const BrandEditor = ({ slug }: Props) => {
       hero_image_url: data.hero_image_url,
       about_photo_url: data.about_photo_url,
       gallery: data.gallery ?? [],
+      badge1_icon: data.badge1_icon || "award",
+      badge1_label: data.badge1_label?.trim().slice(0, 60) || "Profissional Certificada",
+      badge2_icon: data.badge2_icon || "heart",
+      badge2_label: data.badge2_label?.trim().slice(0, 60) || "+500 Clientes",
     };
     const { error } = await supabase.from("tenants").update(payload).eq("slug", slug);
     setSaving(false);

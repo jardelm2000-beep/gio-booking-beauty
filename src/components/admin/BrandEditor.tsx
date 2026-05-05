@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Upload, Trash2, Save, ImageIcon, Plus, Sparkles } from "lucide-react";
+import { Loader2, Upload, Trash2, Save, ImageIcon, Plus, Sparkles, Award, Heart, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
 
@@ -25,6 +26,10 @@ type TenantRow = {
   hero_image_url: string | null;
   about_photo_url: string | null;
   gallery: string[];
+  badge1_icon: string;
+  badge1_label: string;
+  badge2_icon: string;
+  badge2_label: string;
 };
 
 type ServiceRow = {
@@ -57,7 +62,7 @@ const BrandEditor = ({ slug }: Props) => {
     setLoading(true);
     supabase
       .from("tenants")
-      .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery")
+      .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery,badge1_icon,badge1_label,badge2_icon,badge2_label")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data: t, error }) => {
@@ -164,6 +169,10 @@ const BrandEditor = ({ slug }: Props) => {
       hero_image_url: data.hero_image_url,
       about_photo_url: data.about_photo_url,
       gallery: data.gallery ?? [],
+      badge1_icon: data.badge1_icon || "award",
+      badge1_label: data.badge1_label?.trim().slice(0, 60) || "Profissional Certificada",
+      badge2_icon: data.badge2_icon || "heart",
+      badge2_label: data.badge2_label?.trim().slice(0, 60) || "+500 Clientes",
     };
     const { error } = await supabase.from("tenants").update(payload).eq("slug", slug);
     setSaving(false);
@@ -385,6 +394,29 @@ const BrandEditor = ({ slug }: Props) => {
       </Card>
 
       <Card className="border-border/50">
+        <CardHeader><CardTitle className="font-serif text-lg">Selos de destaque</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground font-sans">
+            Dois selos exibidos na seção "Sobre". Escolha o ícone e o texto.
+          </p>
+          <BadgeEditor
+            label="Selo 1"
+            icon={data.badge1_icon}
+            text={data.badge1_label}
+            onIcon={(v) => set("badge1_icon", v)}
+            onText={(v) => set("badge1_label", v)}
+          />
+          <BadgeEditor
+            label="Selo 2"
+            icon={data.badge2_icon}
+            text={data.badge2_label}
+            onIcon={(v) => set("badge2_icon", v)}
+            onText={(v) => set("badge2_label", v)}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
         <CardHeader><CardTitle className="font-serif text-lg">Contato</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <Field label="Link do WhatsApp (com https://)">
@@ -538,6 +570,57 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
     {children}
   </div>
 );
+
+const BADGE_ICON_OPTIONS = [
+  { value: "award", label: "Medalha", Icon: Award },
+  { value: "heart", label: "Coração", Icon: Heart },
+  { value: "book", label: "Livro", Icon: BookOpen },
+] as const;
+
+const BadgeEditor = ({
+  label, icon, text, onIcon, onText,
+}: {
+  label: string;
+  icon: string;
+  text: string;
+  onIcon: (v: string) => void;
+  onText: (v: string) => void;
+}) => {
+  const current = BADGE_ICON_OPTIONS.find((o) => o.value === icon) ?? BADGE_ICON_OPTIONS[0];
+  const CurrentIcon = current.Icon;
+  return (
+    <div className="rounded-lg border border-border/50 p-3 space-y-3 bg-secondary/30">
+      <p className="text-xs font-sans uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-[140px,1fr] gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-sans uppercase tracking-wide text-muted-foreground">Ícone</Label>
+          <Select value={icon} onValueChange={onIcon}>
+            <SelectTrigger>
+              <SelectValue>
+                <span className="inline-flex items-center gap-2">
+                  <CurrentIcon className="w-4 h-4 text-primary" /> {current.label}
+                </span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {BADGE_ICON_OPTIONS.map(({ value, label: l, Icon: I }) => (
+                <SelectItem key={value} value={value}>
+                  <span className="inline-flex items-center gap-2">
+                    <I className="w-4 h-4 text-primary" /> {l}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-sans uppercase tracking-wide text-muted-foreground">Texto</Label>
+          <Input value={text ?? ""} onChange={(e) => onText(e.target.value)} maxLength={60} />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ImageField = ({
   label, url, uploading, onUpload, onClear, ratio = "aspect-square",

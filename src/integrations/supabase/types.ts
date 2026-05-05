@@ -188,6 +188,10 @@ export type Database = {
           about_text: string | null
           active: boolean
           background_color: string
+          badge1_icon: string
+          badge1_label: string
+          badge2_icon: string
+          badge2_label: string
           bio: string | null
           created_at: string
           deleted_at: string | null
@@ -208,6 +212,10 @@ export type Database = {
           about_text?: string | null
           active?: boolean
           background_color?: string
+          badge1_icon?: string
+          badge1_label?: string
+          badge2_icon?: string
+          badge2_label?: string
           bio?: string | null
           created_at?: string
           deleted_at?: string | null
@@ -228,6 +236,10 @@ export type Database = {
           about_text?: string | null
           active?: boolean
           background_color?: string
+          badge1_icon?: string
+          badge1_label?: string
+          badge2_icon?: string
+          badge2_label?: string
           bio?: string | null
           created_at?: string
           deleted_at?: string | null

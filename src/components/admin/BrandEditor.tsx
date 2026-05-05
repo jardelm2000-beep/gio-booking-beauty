@@ -341,7 +341,13 @@ const BrandEditor = ({ slug }: Props) => {
         <CardHeader><CardTitle className="font-serif text-lg">Topo (Hero)</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <Field label="Título">
-            <Input value={data.hero_title ?? ""} onChange={(e) => set("hero_title", e.target.value)} maxLength={120} />
+            <Textarea
+              value={data.hero_title ?? ""}
+              onChange={(e) => set("hero_title", e.target.value)}
+              maxLength={120}
+              rows={2}
+              placeholder="Use Enter para quebrar linha"
+            />
           </Field>
           <Field label="Subtítulo">
             <Textarea

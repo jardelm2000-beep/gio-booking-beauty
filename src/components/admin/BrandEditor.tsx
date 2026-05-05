@@ -394,6 +394,29 @@ const BrandEditor = ({ slug }: Props) => {
       </Card>
 
       <Card className="border-border/50">
+        <CardHeader><CardTitle className="font-serif text-lg">Selos de destaque</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground font-sans">
+            Dois selos exibidos na seção "Sobre". Escolha o ícone e o texto.
+          </p>
+          <BadgeEditor
+            label="Selo 1"
+            icon={data.badge1_icon}
+            text={data.badge1_label}
+            onIcon={(v) => set("badge1_icon", v)}
+            onText={(v) => set("badge1_label", v)}
+          />
+          <BadgeEditor
+            label="Selo 2"
+            icon={data.badge2_icon}
+            text={data.badge2_label}
+            onIcon={(v) => set("badge2_icon", v)}
+            onText={(v) => set("badge2_label", v)}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
         <CardHeader><CardTitle className="font-serif text-lg">Contato</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <Field label="Link do WhatsApp (com https://)">

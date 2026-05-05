@@ -33,11 +33,11 @@ const AboutSection = () => {
               {head} <span className="text-gradient-gold italic">{tail}</span>
             </h2>
             {tenant.bio && (
-              <p className="text-foreground/80 font-sans text-sm italic leading-relaxed border-l-2 border-primary/40 pl-4">
+              <p className="text-foreground/80 font-sans text-sm italic leading-relaxed border-l-2 border-primary/40 pl-4 whitespace-pre-line">
                 {tenant.bio}
               </p>
             )}
-            <p className="text-muted-foreground font-sans leading-relaxed">
+            <p className="text-muted-foreground font-sans leading-relaxed whitespace-pre-line">
               {tenant.about_text}
             </p>
 

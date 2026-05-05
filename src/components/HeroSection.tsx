@@ -31,12 +31,12 @@ const HeroSection = () => {
             <Sparkles className="w-4 h-4" />
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl leading-tight">
+          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl leading-tight whitespace-pre-line">
             {titleHead}{" "}
             <span className="text-gradient-gold italic">{titleTail}</span>
           </h1>
 
-          <p className="text-foreground/60 font-sans text-sm sm:text-lg max-w-md mx-auto leading-relaxed px-2">
+          <p className="text-foreground/60 font-sans text-sm sm:text-lg max-w-md mx-auto leading-relaxed px-2 whitespace-pre-line">
             {subtitle}
           </p>
 

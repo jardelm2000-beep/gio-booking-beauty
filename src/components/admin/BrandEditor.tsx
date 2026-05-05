@@ -571,6 +571,57 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   </div>
 );
 
+const BADGE_ICON_OPTIONS = [
+  { value: "award", label: "Medalha", Icon: Award },
+  { value: "heart", label: "Coração", Icon: Heart },
+  { value: "book", label: "Livro", Icon: BookOpen },
+] as const;
+
+const BadgeEditor = ({
+  label, icon, text, onIcon, onText,
+}: {
+  label: string;
+  icon: string;
+  text: string;
+  onIcon: (v: string) => void;
+  onText: (v: string) => void;
+}) => {
+  const current = BADGE_ICON_OPTIONS.find((o) => o.value === icon) ?? BADGE_ICON_OPTIONS[0];
+  const CurrentIcon = current.Icon;
+  return (
+    <div className="rounded-lg border border-border/50 p-3 space-y-3 bg-secondary/30">
+      <p className="text-xs font-sans uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-[140px,1fr] gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-sans uppercase tracking-wide text-muted-foreground">Ícone</Label>
+          <Select value={icon} onValueChange={onIcon}>
+            <SelectTrigger>
+              <SelectValue>
+                <span className="inline-flex items-center gap-2">
+                  <CurrentIcon className="w-4 h-4 text-primary" /> {current.label}
+                </span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {BADGE_ICON_OPTIONS.map(({ value, label: l, Icon: I }) => (
+                <SelectItem key={value} value={value}>
+                  <span className="inline-flex items-center gap-2">
+                    <I className="w-4 h-4 text-primary" /> {l}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[10px] font-sans uppercase tracking-wide text-muted-foreground">Texto</Label>
+          <Input value={text ?? ""} onChange={(e) => onText(e.target.value)} maxLength={60} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ImageField = ({
   label, url, uploading, onUpload, onClear, ratio = "aspect-square",
 }: {

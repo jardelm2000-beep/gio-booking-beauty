@@ -1,6 +1,12 @@
-import { Instagram, Award, Heart } from "lucide-react";
+import { Instagram, Award, Heart, BookOpen, type LucideIcon } from "lucide-react";
 import aboutPhoto from "@/assets/about-photo.jpg";
 import { useBrand } from "@/hooks/useBrand";
+
+const BADGE_ICONS: Record<string, LucideIcon> = {
+  award: Award,
+  heart: Heart,
+  book: BookOpen,
+};
 
 const AboutSection = () => {
   const { tenant } = useBrand();
@@ -8,6 +14,8 @@ const AboutSection = () => {
   const nameParts = tenant.name.split(" ");
   const head = nameParts.slice(0, -1).join(" ");
   const tail = nameParts.slice(-1)[0];
+  const Badge1 = BADGE_ICONS[tenant.badge1_icon] ?? Award;
+  const Badge2 = BADGE_ICONS[tenant.badge2_icon] ?? Heart;
   return (
     <section id="sobre" className="py-20 sm:py-28 bg-card/50">
       <div className="container mx-auto px-4">
@@ -43,12 +51,12 @@ const AboutSection = () => {
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-2">
               <div className="flex items-center gap-2 text-sm text-foreground/70 font-sans">
-                <Award className="w-4 h-4 text-primary flex-shrink-0" />
-                Profissional Certificada
+                <Badge1 className="w-4 h-4 text-primary flex-shrink-0" />
+                {tenant.badge1_label}
               </div>
               <div className="flex items-center gap-2 text-sm text-foreground/70 font-sans">
-                <Heart className="w-4 h-4 text-primary flex-shrink-0" />
-                +500 Clientes
+                <Badge2 className="w-4 h-4 text-primary flex-shrink-0" />
+                {tenant.badge2_label}
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 import { Instagram, Award, Heart, BookOpen, type LucideIcon } from "lucide-react";
 import aboutPhoto from "@/assets/about-photo.jpg";
 import { useBrand } from "@/hooks/useBrand";
+import { getTypo } from "@/lib/typography";
 
 const BADGE_ICONS: Record<string, LucideIcon> = {
   award: Award,
@@ -16,6 +17,10 @@ const AboutSection = () => {
   const tail = nameParts.slice(-1)[0];
   const Badge1 = BADGE_ICONS[tenant.badge1_icon] ?? Award;
   const Badge2 = BADGE_ICONS[tenant.badge2_icon] ?? Heart;
+  const tHeading = getTypo(tenant.typography, "about_heading");
+  const tBio = getTypo(tenant.typography, "bio");
+  const tAbout = getTypo(tenant.typography, "about_text");
+  const tBadges = getTypo(tenant.typography, "badges");
   return (
     <section id="sobre" className="py-20 sm:py-28 bg-card/50">
       <div className="container mx-auto px-4">
@@ -37,24 +42,24 @@ const AboutSection = () => {
             <span className="text-xs font-sans uppercase tracking-[0.3em] text-primary">
               Sobre
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl leading-snug">
+            <h2 className={`leading-snug ${tHeading.className}`} style={tHeading.style}>
               {head} <span className="text-gradient-gold italic">{tail}</span>
             </h2>
             {tenant.bio && (
-              <p className="text-foreground/80 font-sans text-sm italic leading-relaxed border-l-2 border-primary/40 pl-4 whitespace-pre-line">
+              <p className={`text-foreground/80 italic leading-relaxed border-l-2 border-primary/40 pl-4 whitespace-pre-line ${tBio.className}`} style={tBio.style}>
                 {tenant.bio}
               </p>
             )}
-            <p className="text-muted-foreground font-sans leading-relaxed whitespace-pre-line">
+            <p className={`text-muted-foreground leading-relaxed whitespace-pre-line ${tAbout.className}`} style={tAbout.style}>
               {tenant.about_text}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-2">
-              <div className="flex items-center gap-2 text-sm text-foreground/70 font-sans">
+              <div className={`flex items-center gap-2 text-foreground/70 ${tBadges.className}`} style={tBadges.style}>
                 <Badge1 className="w-4 h-4 text-primary flex-shrink-0" />
                 {tenant.badge1_label}
               </div>
-              <div className="flex items-center gap-2 text-sm text-foreground/70 font-sans">
+              <div className={`flex items-center gap-2 text-foreground/70 ${tBadges.className}`} style={tBadges.style}>
                 <Badge2 className="w-4 h-4 text-primary flex-shrink-0" />
                 {tenant.badge2_label}
               </div>

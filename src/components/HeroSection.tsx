@@ -3,6 +3,7 @@ import { CalendarDays, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroBg from "@/assets/hero-bg.jpg";
 import { useBrand } from "@/hooks/useBrand";
+import { getTypo } from "@/lib/typography";
 
 const HeroSection = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -13,6 +14,9 @@ const HeroSection = () => {
   const titleHead = titleParts.slice(0, -1).join(" ");
   const titleTail = titleParts.slice(-1)[0];
   const bg = tenant.hero_image_url || heroBg;
+  const tBrand = getTypo(tenant.typography, "brand_name");
+  const tTitle = getTypo(tenant.typography, "hero_title");
+  const tSub = getTypo(tenant.typography, "hero_subtitle");
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div
@@ -25,18 +29,18 @@ const HeroSection = () => {
         <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
           <div className="flex items-center justify-center gap-2 text-primary">
             <Sparkles className="w-4 h-4" />
-            <span className="text-xs font-sans uppercase tracking-[0.3em]">
+            <span className={`uppercase tracking-[0.3em] ${tBrand.className}`} style={tBrand.style}>
               {tenant.name}
             </span>
             <Sparkles className="w-4 h-4" />
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl leading-tight whitespace-pre-line">
+          <h1 className={`leading-tight whitespace-pre-line ${tTitle.className}`} style={tTitle.style}>
             {titleHead}{" "}
             <span className="text-gradient-gold italic">{titleTail}</span>
           </h1>
 
-          <p className="text-foreground/60 font-sans text-sm sm:text-lg max-w-md mx-auto leading-relaxed px-2 whitespace-pre-line">
+          <p className={`text-foreground/60 max-w-md mx-auto leading-relaxed px-2 whitespace-pre-line ${tSub.className}`} style={tSub.style}>
             {subtitle}
           </p>
 

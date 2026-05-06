@@ -204,6 +204,7 @@ export type Database = {
           name: string
           primary_color: string
           slug: string
+          typography: Json
           updated_at: string
           whatsapp_url: string | null
         }
@@ -228,6 +229,7 @@ export type Database = {
           name: string
           primary_color?: string
           slug: string
+          typography?: Json
           updated_at?: string
           whatsapp_url?: string | null
         }
@@ -252,6 +254,7 @@ export type Database = {
           name?: string
           primary_color?: string
           slug?: string
+          typography?: Json
           updated_at?: string
           whatsapp_url?: string | null
         }

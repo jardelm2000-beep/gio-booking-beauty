@@ -477,6 +477,58 @@ const BrandEditor = ({ slug }: Props) => {
       </Card>
 
       <Card className="border-border/50">
+        <CardHeader><CardTitle className="font-serif text-lg">Tipografia</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground font-sans">
+            Escolha a fonte e o tamanho de cada texto da página pública.
+          </p>
+          {TYPOGRAPHY_FIELDS.map((f) => {
+            const cfg = data.typography?.[f.key] ?? {};
+            const font = cfg.font ?? f.defaultFont;
+            const size = cfg.size ?? f.defaultSize;
+            const update = (patch: { font?: string; size?: string }) => {
+              const next: TypographyMap = {
+                ...(data.typography ?? {}),
+                [f.key]: { ...(data.typography?.[f.key] ?? {}), ...patch },
+              };
+              set("typography", next);
+            };
+            return (
+              <div key={f.key} className="rounded-lg border border-border/50 p-3 bg-secondary/30 space-y-3">
+                <p className="text-xs font-sans uppercase tracking-wide text-muted-foreground">{f.label}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-sans uppercase tracking-wide text-muted-foreground">Fonte</Label>
+                    <Select value={font} onValueChange={(v) => update({ font: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FONT_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            <span style={{ fontFamily: o.css }}>{o.label}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-sans uppercase tracking-wide text-muted-foreground">Tamanho</Label>
+                    <Select value={size} onValueChange={(v) => update({ size: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SIZE_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/50">
         <CardHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <CardTitle className="font-serif text-lg flex items-center gap-2">

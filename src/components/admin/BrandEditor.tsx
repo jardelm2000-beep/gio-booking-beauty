@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { safeErrorMessage } from "@/lib/safe-error";
+import { TYPOGRAPHY_FIELDS, FONT_OPTIONS, SIZE_OPTIONS, type TypographyMap } from "@/lib/typography";
 
 type TenantRow = {
   slug: string;
@@ -30,6 +31,7 @@ type TenantRow = {
   badge1_label: string;
   badge2_icon: string;
   badge2_label: string;
+  typography: TypographyMap;
 };
 
 type ServiceRow = {
@@ -62,13 +64,13 @@ const BrandEditor = ({ slug }: Props) => {
     setLoading(true);
     supabase
       .from("tenants")
-      .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery,badge1_icon,badge1_label,badge2_icon,badge2_label")
+      .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,bio,logo_url,hero_image_url,about_photo_url,gallery,badge1_icon,badge1_label,badge2_icon,badge2_label,typography")
       .eq("slug", slug)
       .maybeSingle()
       .then(({ data: t, error }) => {
         if (!active) return;
         if (error) toast.error(safeErrorMessage(error, "Não foi possível carregar a marca."));
-        if (t) setData(t as TenantRow);
+        if (t) setData({ ...(t as Omit<TenantRow, "typography">), typography: ((t as { typography?: TypographyMap }).typography ?? {}) });
         setLoading(false);
       });
     return () => { active = false; };
@@ -173,6 +175,7 @@ const BrandEditor = ({ slug }: Props) => {
       badge1_label: data.badge1_label?.trim().slice(0, 60) || "Profissional Certificada",
       badge2_icon: data.badge2_icon || "heart",
       badge2_label: data.badge2_label?.trim().slice(0, 60) || "+500 Clientes",
+      typography: data.typography ?? {},
     };
     const { error } = await supabase.from("tenants").update(payload).eq("slug", slug);
     setSaving(false);

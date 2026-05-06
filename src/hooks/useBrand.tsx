@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import type { TypographyMap } from "@/lib/typography";
 
 export const HUB_SLUG = "divas-plan";
 
@@ -23,6 +24,7 @@ export type Tenant = {
   badge1_label: string;
   badge2_icon: string;
   badge2_label: string;
+  typography: TypographyMap;
 };
 
 export type BrandService = {
@@ -65,7 +67,7 @@ export const BrandProvider = ({ children }: { children: ReactNode }) => {
     (async () => {
       const { data: t } = await supabase
         .from("tenants")
-        .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,about_photo_url,logo_url,bio,hero_image_url,gallery,badge1_icon,badge1_label,badge2_icon,badge2_label")
+        .select("slug,name,primary_color,background_color,whatsapp_url,instagram_handle,hero_title,hero_subtitle,about_text,about_photo_url,logo_url,bio,hero_image_url,gallery,badge1_icon,badge1_label,badge2_icon,badge2_label,typography")
         .eq("slug", slug)
         .eq("active", true)
         .maybeSingle();

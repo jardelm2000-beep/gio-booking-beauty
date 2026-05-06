@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, CheckCircle, ArrowLeft, MessageCircle } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Clock, CheckCircle, ArrowLeft, MessageCircle, Lock } from "lucide-react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -31,29 +31,38 @@ const bookingSchema = z.object({
 const BookingPage = () => {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { tenant, services } = useBrand();
   const { user, loading } = useAuth();
-  const [step, setStep] = useState(1);
-  const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const initialService = searchParams.get("service");
+  const initialDateStr = searchParams.get("date");
+  const initialTime = searchParams.get("time");
+  const initialStep = Number(searchParams.get("step") || "1");
+  const [step, setStep] = useState<number>(
+    Number.isFinite(initialStep) && initialStep >= 1 && initialStep <= 4 ? initialStep : 1,
+  );
+  const [selectedService, setSelectedService] = useState<string | null>(initialService);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    initialDateStr ? new Date(`${initialDateStr}T00:00:00`) : undefined,
+  );
+  const [selectedTime, setSelectedTime] = useState<string | null>(initialTime);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Reseta estado ao trocar de marca (evita reservar para a marca errada)
   useEffect(() => {
-    setStep(1);
-    setSelectedService(null);
-    setSelectedDate(undefined);
-    setSelectedTime(null);
+    // Mantém estado se veio via query (retorno do login); caso contrário reseta
+    if (!initialService && !initialDateStr && !initialTime) {
+      setStep(1);
+      setSelectedService(null);
+      setSelectedDate(undefined);
+      setSelectedTime(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate(`/auth?redirect=/${slug}/agendar`, { replace: true });
-      return;
-    }
     if (user) {
       // Pré-preenche com dados do perfil
       supabase
@@ -62,11 +71,29 @@ const BookingPage = () => {
         .eq("user_id", user.id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data?.display_name) setName(data.display_name);
-          if (data?.phone) setPhone(data.phone);
+          if (data?.display_name) setName((n) => n || data.display_name!);
+          if (data?.phone) setPhone((p) => p || data.phone!);
         });
     }
-  }, [user, loading, navigate, slug]);
+  }, [user]);
+
+  // Limpa parâmetros da URL após restaurar o estado
+  useEffect(() => {
+    if (searchParams.get("service") || searchParams.get("date") || searchParams.get("time") || searchParams.get("step")) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const goToLogin = () => {
+    const params = new URLSearchParams();
+    if (selectedService) params.set("service", selectedService);
+    if (selectedDate) params.set("date", format(selectedDate, "yyyy-MM-dd"));
+    if (selectedTime) params.set("time", selectedTime);
+    params.set("step", "3");
+    const redirect = `/${slug}/agendar?${params.toString()}`;
+    navigate(`/auth?redirect=${encodeURIComponent(redirect)}`);
+  };
 
   const handleConfirm = async () => {
     if (!user || !selectedService || !selectedDate || !selectedTime || !slug) return;
@@ -122,7 +149,7 @@ const BookingPage = () => {
 
   const service = services.find((s) => s.id === selectedService);
 
-  if (loading) {
+  if (loading && step === 3 && !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground font-sans text-sm">Carregando...</p>

@@ -247,6 +247,29 @@ const BookingPage = () => {
 
         {step === 3 && (
           <div className="space-y-6 animate-fade-in">
+            {!user ? (
+              <Card className="border-border/50">
+                <CardContent className="p-6 space-y-4 text-center">
+                  <Lock className="w-10 h-10 text-primary mx-auto" />
+                  <h3 className="font-serif text-xl">Falta só um passo!</h3>
+                  <p className="text-muted-foreground font-sans text-sm">
+                    Entre ou crie uma conta rápida para confirmar seu agendamento de{" "}
+                    <span className="text-foreground">{service?.name}</span> em{" "}
+                    {selectedDate && format(selectedDate, "dd/MM")} às {selectedTime}.
+                  </p>
+                  <Button
+                    onClick={goToLogin}
+                    className="w-full bg-gradient-gold text-primary-foreground font-sans shadow-gold"
+                  >
+                    Entrar / Cadastrar
+                  </Button>
+                  <p className="text-xs text-muted-foreground font-sans">
+                    É rápido — em segundos você volta para esta tela.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+            <>
             <h3 className="font-serif text-lg text-center">Seus dados</h3>
             <Card className="border-border/50">
               <CardContent className="p-6 space-y-4">
@@ -279,6 +302,8 @@ const BookingPage = () => {
                 </Button>
               </CardContent>
             </Card>
+            </>
+            )}
           </div>
         )}
 
